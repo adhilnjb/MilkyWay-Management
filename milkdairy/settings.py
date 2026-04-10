@@ -13,8 +13,9 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost', 
     '127.0.0.1', 
+    '.onrender.com',      # <--- Add this for Render
     '.ngrok-free.app', 
-    '.ngrok-free.dev',  # <--- Add this one
+    '.ngrok-free.dev',
     '.ngrok.io'
 ]
 
