@@ -40,7 +40,7 @@ pyhanko-certvalidator==0.26.5
 PyJWT==2.10.1
 PyMySQL==1.1.1
 pypdf==5.1.0
-python-bidi==0.6.3
+python-bidi==0.4.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 pytz==2024.2
