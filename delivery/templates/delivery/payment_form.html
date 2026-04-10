@@ -1,0 +1,83 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Record Payment – MilkDairy Pro{% endblock %}
+{% block page_title %}Record Payment{% endblock %}
+{% block page_sub %}Add payment received from customer{% endblock %}
+{% block topbar_actions %}
+<a href="{% url 'customer_list' %}" class="btn btn-secondary">← Customers</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:600px;">
+<div class="card">
+  <div class="card-header"><span class="card-title">💳 Payment Details</span></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Customer *</label>
+        <select name="customer" class="form-control" id="custSel" onchange="loadBills()">
+          <option value="">— Select Customer —</option>
+          {% for c in customers %}
+          <option value="{{ c.id }}" {% if customer and customer.id == c.id %}selected{% endif %}>
+            {{ c.customer_id }} – {{ c.name }} ({{ c.phone }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Against Bill (optional)</label>
+        <select name="bill_id" class="form-control" id="billSel">
+          <option value="">— General Payment —</option>
+          {% for b in unpaid_bills %}
+          <option value="{{ b.id }}">{{ b.bill_number }} · ₹{{ b.grand_total }} · {{ b.get_status_display }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Amount (₹) *</label>
+          <input type="number" name="amount" class="form-control" step="0.01" min="0.01" required placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Payment Method</label>
+          <select name="payment_method" class="form-control">
+            <option value="cash">💵 Cash</option>
+            <option value="upi">📱 UPI</option>
+            <option value="bank">🏦 Bank Transfer</option>
+            <option value="cheque">📃 Cheque</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Payment Date</label>
+          <input type="date" name="payment_date" class="form-control" value="{% now 'Y-m-d' %}">
+        </div>
+        <div class="form-group">
+          <label>Reference / UTR Number</label>
+          <input type="text" name="reference_number" class="form-control" placeholder="UPI ref, cheque no...">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:4px;margin-bottom:20px;">
+        <label>Notes</label>
+        <input type="text" name="notes" class="form-control" placeholder="Any remarks...">
+      </div>
+
+      <button type="submit" class="btn btn-success btn-lg">✓ Record Payment</button>
+      <a href="{% url 'customer_list' %}" class="btn btn-secondary btn-lg" style="margin-left:10px;">Cancel</a>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadBills() {
+  // In production, make AJAX call to fetch customer's unpaid bills
+  // For now, page reloads with customer selection preserved
+}
+</script>
+{% endblock %}

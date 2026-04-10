@@ -1,0 +1,243 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Customers – Milky Way Pro{% endblock %}
+{% block page_title %}Customer Registry{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'customer_add' %}" class="btn btn-primary" style="box-shadow: 0 4px 12px rgba(13,115,119,0.3);">
+    <span>➕</span> <span class="d-none d-md-inline">Add New Customer</span><span class="d-md-none"></span>
+</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── MOBILE SUMMARY SCROLL (New) ── */
+    .mobile-summary-bar {
+        display: none;
+        gap: 10px;
+        overflow-x: auto;
+        padding-bottom: 15px;
+        margin-bottom: 10px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .m-stat-pill {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: white;
+        padding: 8px 16px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        white-space: nowrap;
+        box-shadow: var(--shadow);
+    }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    @media (max-width: 992px) {
+        .mobile-summary-bar { display: flex; } /* Show only on mobile/tablet */
+    }
+
+    /* ── DESKTOP COMMAND CENTER LAYOUT ── */
+    .registry-wrapper {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    @media (min-width: 1200px) {
+        .registry-wrapper {
+            grid-template-columns: 280px 1fr;
+            align-items: start;
+        }
+        .stats-sidebar { position: sticky; top: 90px; display: block !important; }
+    }
+
+    .stats-sidebar { display: none; }
+    .mini-stat-card {
+        background: white; border-radius: 20px; padding: 20px;
+        margin-bottom: 15px; border: 1px solid var(--border);
+        display: flex; align-items: center; gap: 15px;
+    }
+
+    /* ── TABLE & CARD STYLING ── */
+    .premium-table-card { background: white; border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--shadow); overflow: hidden; }
+    .desktop-table { width: 100%; border-collapse: collapse; }
+    .desktop-table td, .desktop-table th { padding: 18px 20px; border-bottom: 1px solid #f1f5f9; text-align: left; }
+    
+    .avatar-ui { width: 40px; height: 40px; background: var(--primary-pale); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary); }
+
+    @media (max-width: 992px) {
+        .premium-table-card { display: none; }
+        .mobile-view-container { display: block !important; }
+    }
+
+    .mobile-view-container { display: none; }
+    .mobile-cust-card { background: white; border-radius: 20px; padding: 18px; margin-bottom: 15px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+    .m-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .m-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid #f1f5f9; }
+    .m-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+    .m-btn { height: 42px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: 10px; border: 1px solid var(--border); text-decoration: none; }
+
+    .filter-section { background: white; border-radius: 20px; padding: 15px 20px; margin-bottom: 24px; border: 1px solid var(--border); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="mobile-summary-bar">
+    <div class="m-stat-pill">
+        <div class="dot" style="background: var(--success);"></div>
+        <span style="font-size: 13px; font-weight: 800;">{{ active_count }} Active</span>
+    </div>
+    <div class="m-stat-pill">
+        <div class="dot" style="background: var(--accent);"></div>
+        <span style="font-size: 13px; font-weight: 800;">{{ paused_count }} Paused</span>
+    </div>
+    <div class="m-stat-pill">
+        <div class="dot" style="background: var(--danger);"></div>
+        <span style="font-size: 13px; font-weight: 800;">{{ inactive_count }} Inactive</span>
+    </div>
+</div>
+
+<div class="filter-section">
+    <form method="get" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+        <div style="flex: 2; min-width: 250px;">
+            <label style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block;">Quick Search</label>
+            <input type="text" name="q" value="{{ q }}" id="liveInput" class="form-control" 
+                   placeholder="Name, phone or ID..." oninput="filterData(this.value)"
+                   style="height: 48px; background: #f1f5f9; border: none; border-radius: 14px; padding: 0 20px;">
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+            <select name="area" class="form-control" onchange="this.form.submit()" style="height: 48px; border-radius: 14px;">
+                <option value="">All Zones</option>
+                {% for val, label in area_choices %}<option value="{{ val }}" {% if area == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <button type="submit" class="btn btn-primary" style="height: 48px;">Filter</button>
+            <a href="{% url 'customer_list' %}" class="btn btn-secondary" style="height: 48px; width: 48px; display: flex; align-items: center; justify-content: center;">↺</a>
+        </div>
+    </form>
+</div>
+
+<div class="registry-wrapper">
+    
+    <aside class="stats-sidebar">
+        <div class="mini-stat-card">
+            <div class="dot" style="background: var(--success); width:12px; height:12px;"></div>
+            <div>
+                <div style="font-size: 18px; font-weight: 900;">{{ active_count }}</div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Active Users</div>
+            </div>
+        </div>
+        <div class="mini-stat-card">
+            <div class="dot" style="background: var(--accent); width:12px; height:12px;"></div>
+            <div>
+                <div style="font-size: 18px; font-weight: 900;">{{ paused_count }}</div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Paused</div>
+            </div>
+        </div>
+        <div class="mini-stat-card">
+            <div class="dot" style="background: var(--danger); width:12px; height:12px;"></div>
+            <div>
+                <div style="font-size: 18px; font-weight: 900;">{{ inactive_count }}</div>
+                <div style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">Inactive</div>
+            </div>
+        </div>
+    </aside>
+
+    <main>
+        <div class="premium-table-card">
+            <table class="desktop-table">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Contact</th>
+                        <th>Subscription</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in page_obj %}
+                    <tr class="cust-row-ui" data-search="{{ c.name|lower }} {{ c.phone }} {{ c.customer_id|lower }}">
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div class="avatar-ui">{{ c.name|first|upper }}</div>
+                                <div>
+                                    <div style="font-weight: 800;">{{ c.name }}</div>
+                                    <div style="font-size: 10px; color: var(--muted);">ID: {{ c.customer_id }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 700; font-size: 13px;">{{ c.phone }}</div>
+                            <div style="font-size: 11px; color: var(--primary);">📍 {{ c.get_area_display }}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 800;">{{ c.default_qty }}L</div>
+                            <div style="font-size: 10px; color: var(--muted);">{{ c.get_delivery_schedule_display }}</div>
+                        </td>
+                        <td>
+                            {% if c.status == 'active' %}
+                                <span class="badge" style="background: #d1fae5; color: #065f46;">Active</span>
+                            {% else %}
+                                <span class="badge" style="background: #fee2e2; color: #991b1b;">{{ c.status|upper }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 6px; justify-content: flex-end;">
+                                <a href="{% url 'customer_detail' c.pk %}" class="btn btn-secondary btn-sm">👁️</a>
+                                <a href="{% url 'customer_edit' c.pk %}" class="btn btn-secondary btn-sm">✏️</a>
+                                <a href="{% url 'payment_add_customer' c.pk %}" class="btn btn-primary btn-sm">💰</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mobile-view-container">
+            {% for c in page_obj %}
+            <div class="mobile-cust-card" data-search="{{ c.name|lower }} {{ c.phone }} {{ c.customer_id|lower }}">
+                <div class="m-header">
+                    <div class="avatar-ui" style="width:35px; height:35px; font-size:12px;">{{ c.name|first|upper }}</div>
+                    <div class="m-name">{{ c.name }}</div>
+                    {% if c.status == 'active' %}✅{% else %}⚠️{% endif %}
+                </div>
+                <div class="m-body">
+                    <div>
+                        <span style="font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase;">Contact</span>
+                        <span style="font-size:13px; font-weight:700; display:block;">{{ c.phone }}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase;">Plan</span>
+                        <span style="font-size:13px; font-weight:700; display:block;">{{ c.default_qty }}L / {{ c.get_delivery_schedule_display }}</span>
+                    </div>
+                </div>
+                <div class="m-actions">
+                    <a href="{% url 'customer_detail' c.pk %}" class="m-btn">👁️</a>
+                    <a href="{% url 'customer_edit' c.pk %}" class="m-btn">✏️</a>
+                    <a href="{% url 'payment_add_customer' c.pk %}" class="m-btn" style="color:var(--success)">💰</a>
+                    <a href="tel:{{ c.phone }}" class="m-btn" style="color:#3b82f6">📞</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterData(q) {
+    q = q.toLowerCase().trim();
+    document.querySelectorAll('.cust-row-ui, .mobile-cust-card').forEach(el => {
+        el.style.display = el.dataset.search.includes(q) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

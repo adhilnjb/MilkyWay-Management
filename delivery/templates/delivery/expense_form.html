@@ -1,0 +1,191 @@
+{% extends 'delivery/base.html' %}
+{% block title %}{{ action }} Expense – Milky Way Pro{% endblock %}
+{% block page_title %}{{ action }} Expense{% endblock %}
+{% block page_sub %}Record business outgoings and farm costs{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'expense_list' %}" class="btn btn-secondary btn-sm">← History</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── SYSTEM LAYOUT ── */
+    .expense-container { max-width: 1000px; margin: 0 auto; padding-bottom: 50px; }
+    
+    .sec-card {
+        background: white; border-radius: 20px; padding: 24px;
+        margin-bottom: 24px; border: 1px solid var(--border); box-shadow: var(--shadow);
+    }
+
+    .sec-header {
+        font-size: 14px; font-weight: 800; color: var(--dark);
+        margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+        display: flex; align-items: center; gap: 10px;
+    }
+
+    /* ── CATEGORY GRID ── */
+    .cat-grid { 
+        display: grid; 
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); 
+        gap: 12px; 
+    }
+    
+    .cat-card {
+        background: #f8fafc; border: 2px solid #f1f5f9; border-radius: 16px;
+        padding: 15px 10px; cursor: pointer; text-align: center;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .cat-card:hover { border-color: var(--primary-light); background: white; transform: translateY(-3px); }
+    .cat-card.selected { 
+        border-color: var(--primary); background: var(--primary-pale); 
+        box-shadow: 0 8px 15px -5px rgba(13, 115, 119, 0.2);
+    }
+
+    .cat-icon { font-size: 28px; display: block; margin-bottom: 8px; }
+    .cat-name { font-size: 12px; font-weight: 700; color: var(--dark); }
+
+    /* ── FORM FIELDS GRID ── */
+    .expense-form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+    }
+
+    .full-width { grid-column: 1 / -1; }
+
+    /* ── QUICK AMOUNTS ── */
+    .amt-chip {
+        padding: 8px 16px; border-radius: 10px; background: #f1f5f9;
+        color: var(--dark); font-weight: 700; font-size: 13px;
+        border: 1.5px solid transparent; cursor: pointer; transition: 0.2s;
+    }
+    .amt-chip:hover { background: var(--primary-pale); border-color: var(--primary); color: var(--primary); }
+
+    /* ── MOBILE OVERRIDES ── */
+    @media (max-width: 600px) {
+        .sec-card { padding: 18px; border-radius: 16px; }
+        .cat-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .cat-icon { font-size: 22px; }
+        .cat-name { font-size: 10px; }
+        .btn-group-mobile { flex-direction: column; }
+        .btn-group-mobile .btn { width: 100%; justify-content: center; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="expense-container">
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div class="sec-card">
+        <div class="sec-header">🏷️ Expense Category</div>
+        <input type="hidden" name="category" id="catInput" value="{{ expense.category_id|default:'' }}" required>
+        <div class="cat-grid" id="catGrid">
+            {% for cat in categories %}
+            <div class="cat-card {% if expense.category_id == cat.id %}selected{% endif %}"
+                 data-cat-id="{{ cat.id }}"
+                 onclick="selectCat({{ cat.id }}, this)">
+                <span class="cat-icon">{{ cat.get_icon_emoji|default:'📦' }}</span>
+                <span class="cat-name">{{ cat.name }}</span>
+            </div>
+            {% empty %}
+            <p style="color:var(--muted); font-size:13px;">No categories. <a href="{% url 'expense_category_list' %}">Add now →</a></p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="sec-card">
+        <div class="sec-header">📝 Expense Details</div>
+        
+        <div class="expense-form-grid">
+            <div class="form-group full-width">
+                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">PURPOSE / TITLE *</label>
+                <input type="text" name="title" class="form-control" value="{{ expense.title|default:'' }}" 
+                       placeholder="e.g. Monthly Cattle Feed, Electricity..." required>
+            </div>
+
+            <div class="form-group">
+                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">AMOUNT (RS.) *</label>
+                <input type="number" name="amount" id="amtField" class="form-control font-mono" step="0.01" 
+                       value="{{ expense.amount|default:'' }}" required 
+                       style="font-size: 20px; font-weight: 800; color: var(--danger); border-color: var(--danger-light);">
+                
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px;">
+                    <span class="amt-chip" onclick="setAmt(100)">100</span>
+                    <span class="amt-chip" onclick="setAmt(500)">500</span>
+                    <span class="amt-chip" onclick="setAmt(1000)">1k</span>
+                    <span class="amt-chip" onclick="setAmt(2000)">2k</span>
+                    <span class="amt-chip" onclick="setAmt(5000)">5k</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">DATE *</label>
+                <input type="date" name="date" class="form-control" 
+                       value="{{ expense.date|date:'Y-m-d'|default:today|date:'Y-m-d' }}" required>
+            </div>
+
+            <div class="form-group">
+                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">PAYMENT METHOD</label>
+                <select name="payment_mode" class="form-control" style="font-weight: 700;">
+                    {% for val,lbl in pay_choices %}
+                    <option value="{{ val }}" {% if expense.payment_mode == val %}selected{% endif %}>{{ lbl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">VENDOR / SUPPLIER</label>
+                <input type="text" name="vendor" class="form-control" value="{{ expense.vendor|default:'' }}" placeholder="Optional">
+            </div>
+
+            <div class="form-group full-width">
+                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">ATTACH RECEIPT (IMAGE)</label>
+                <input type="file" name="receipt" class="form-control" accept="image/*" style="padding: 8px;">
+                {% if expense.receipt %}<small class="text-success">Current: {{ expense.receipt.name|truncatechars:30 }}</small>{% endif %}
+            </div>
+
+            <div class="form-group full-width">
+                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">NOTES</label>
+                <textarea name="description" class="form-control" rows="2" placeholder="Any specific details...">{{ expense.description|default:'' }}</textarea>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; color: var(--dark);">
+                <input type="checkbox" name="is_recurring" {% if expense.is_recurring %}checked{% endif %} 
+                       style="width: 20px; height: 20px; accent-color: var(--primary);">
+                <span>🔁 Mark as recurring monthly expense</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="btn-group-mobile" style="display: flex; gap: 15px;">
+        <button type="submit" class="btn btn-primary btn-lg" style="flex: 2; height: 55px; font-size: 16px; box-shadow: 0 10px 20px -5px rgba(13, 115, 119, 0.4);">
+            {% if action == 'Add' %}➕ Record Expense{% else %}💾 Save Changes{% endif %}
+        </button>
+        <a href="{% url 'expense_list' %}" class="btn btn-secondary btn-lg" style="flex: 1; height: 55px; justify-content: center;">Cancel</a>
+    </div>
+</form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function selectCat(id, card) {
+        document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        document.getElementById('catInput').value = id;
+    }
+    
+    function setAmt(v) {
+        const field = document.getElementById('amtField');
+        field.value = v;
+        // Visual feedback
+        field.style.transform = 'scale(1.02)';
+        setTimeout(() => field.style.transform = 'scale(1)', 150);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Confirm Delete – MilkDairy Pro{% endblock %}
+{% block page_title %}Confirm Delete{% endblock %}
+
+{% block content %}
+<div style="max-width:480px;">
+<div class="card">
+  <div class="card-body" style="text-align:center;padding:40px;">
+    <div style="font-size:56px;margin-bottom:16px;">⚠️</div>
+    <h2 style="margin-bottom:8px;color:var(--dark);">Delete {{ type }}?</h2>
+    <p style="color:var(--muted);margin-bottom:{% if warning %}12px{% else %}24px{% endif %};">
+      You are about to delete <strong>{{ object }}</strong>.<br>
+      This action <strong>cannot be undone</strong>.
+    </p>
+    {% if warning %}
+    <div style="background:var(--accent-light);border:1.5px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:13px;color:#92400e;">
+      ⚠️ {{ warning }}
+    </div>
+    {% endif %}
+    <form method="post" style="display:flex;gap:10px;justify-content:center;">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger btn-lg">🗑 Yes, Delete</button>
+      <a href="javascript:history.back()" class="btn btn-secondary btn-lg">Cancel</a>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

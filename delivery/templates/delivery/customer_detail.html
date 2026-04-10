@@ -1,0 +1,305 @@
+{% extends 'delivery/base.html' %}
+{% block title %}{{ customer.name }} – MilkDairy Pro{% endblock %}
+{% block page_title %}{{ customer.name }}{% endblock %}
+{% block page_sub %}Customer ID: {{ customer.customer_id }}{% endblock %}
+
+{% block topbar_actions %}
+<div style="display: flex; gap: 8px;">
+    <button onclick="toggleDeleteModal()" class="btn" style="background: #fff1f2; color: var(--danger); border: 1px solid #fee2e2;">🗑️ Delete</button>
+    
+    <a href="{% url 'customer_edit' customer.pk %}" class="btn btn-secondary">✏️ Edit</a>
+    <a href="{% url 'customer_list' %}" class="btn btn-secondary">← Back</a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── SYSTEM GRID ── */
+.detail-grid {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+/* ── STATS ROW ── */
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.premium-stat {
+    background: white;
+    border-radius: 20px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.premium-stat .icon-bg {
+    position: absolute;
+    right: -10px;
+    bottom: -10px;
+    font-size: 60px;
+    opacity: 0.05;
+}
+
+/* ── PROFILE CARD ── */
+.profile-card {
+    background: white;
+    border-radius: 24px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    padding: 24px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+.info-row:last-child { border-bottom: none; }
+.info-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+.info-val { font-size: 14px; font-weight: 700; color: var(--dark); }
+
+/* ── PRODUCT CHIPS ── */
+.product-card-sm {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: 0.2s;
+}
+.product-card-sm:hover { border-color: var(--primary); background: var(--primary-pale); }
+
+/* ── DELETE MODAL ── */
+#deleteModal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 24px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+}
+
+/* ── MOBILE FIXES ── */
+@media (max-width: 1024px) {
+    .detail-grid { grid-template-columns: 1fr; }
+    .stats-container { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 600px) {
+    .stats-container { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .premium-stat { padding: 15px; }
+    .premium-stat .card-val { font-size: 18px !important; }
+}
+
+.table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div id="deleteModal">
+    <div class="modal-content">
+        <div style="font-size: 40px; margin-bottom: 15px;">⚠️</div>
+        <h3 style="font-weight: 800; margin-bottom: 10px;">Are you sure?</h3>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 25px;">
+            This will permanently remove <strong>{{ customer.name }}</strong> and all their history. This action cannot be undone.
+        </p>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="toggleDeleteModal()" class="btn btn-secondary" style="flex: 1; justify-content: center;">Cancel</button>
+            <form action="{% url 'customer_delete' customer.pk %}" method="post" style="flex: 1;">
+                {% csrf_token %}
+                <button type="submit" class="btn" style="background: var(--danger); color: white; width: 100%; justify-content: center;">Delete Forever</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="stats-container">
+    <div class="premium-stat" style="border-top: 4px solid var(--primary);">
+        <span class="icon-bg">🥛</span>
+        <span class="info-label">Monthly Volume</span>
+        <div class="card-val" style="font-size: 24px; font-weight: 900; color: var(--primary);">{{ month_qty|floatformat:1 }}L</div>
+        <span style="font-size: 11px; font-weight: 600; color: var(--success);">Rs.{{ month_amount|floatformat:0 }} billed</span>
+    </div>
+
+    <div class="premium-stat" style="border-top: 4px solid var(--danger);">
+        <span class="icon-bg">🧾</span>
+        <span class="info-label">Outstanding</span>
+        <div class="card-val" style="font-size: 24px; font-weight: 900; color: var(--danger);">Rs.{{ outstanding|floatformat:0 }}</div>
+        <span style="font-size: 11px; font-weight: 600; color: var(--muted);">{{ bills.count }} total invoices</span>
+    </div>
+
+    <div class="premium-stat" style="border-top: 4px solid var(--accent);">
+        <span class="icon-bg">📅</span>
+        <span class="info-label">Account Status</span>
+        <div class="card-val" style="font-size: 20px; font-weight: 900; color: var(--dark);">{{ customer.get_status_display }}</div>
+        <span style="font-size: 11px; font-weight: 600; color: var(--muted);">Since {{ customer.joining_date|date:"M Y" }}</span>
+    </div>
+
+    <div class="premium-stat" style="border-top: 4px solid #3b82f6;">
+        <span class="icon-bg">🛒</span>
+        <span class="info-label">Active Subs</span>
+        <div class="card-val" style="font-size: 24px; font-weight: 900; color: #3b82f6;">{{ customer.subscriptions.count }}</div>
+        <span style="font-size: 11px; font-weight: 600; color: var(--muted);">Products per delivery</span>
+    </div>
+</div>
+
+<div class="detail-grid">
+    <div class="sticky-side">
+        <div class="profile-card" style="margin-bottom: 20px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="width: 70px; height: 70px; background: var(--primary-pale); color: var(--primary); border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 900;">
+                    {{ customer.name|first|upper }}
+                </div>
+                <h3 style="margin-top: 12px; font-weight: 900;">{{ customer.name }}</h3>
+            </div>
+
+            <div class="info-row">
+                <span class="info-label">Phone</span>
+                <span class="info-val">{{ customer.phone }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Area</span>
+                <span class="badge" style="background: #e0f2fe; color: #0369a1; font-size: 10px;">{{ customer.get_area_display }}</span>
+            </div>
+            <div class="info-row" style="flex-direction: column; border: none; padding-bottom: 0;">
+                <span class="info-label" style="margin-bottom: 5px;">Delivery Address</span>
+                <span class="info-val" style="line-height: 1.5;">{{ customer.address }}</span>
+            </div>
+        </div>
+
+        <div class="profile-card">
+            <h4 style="font-size: 14px; font-weight: 900; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                <span>🛒</span> Active Subscriptions
+            </h4>
+            {% for sub in customer.subscriptions.all %}
+            <div class="product-card-sm">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 800; font-size: 14px; color: var(--primary);">{{ sub.product.name }}</span>
+                    <span style="font-weight: 900; font-size: 14px;">{{ sub.quantity }}{{ sub.product.unit }}</span>
+                </div>
+                <div style="font-size: 11px; color: var(--muted); margin-top: 4px; font-weight: 600;">
+                    Rate: Rs.{{ sub.custom_price|default:sub.product.default_price }} / {{ sub.product.unit }}
+                </div>
+            </div>
+            {% empty %}
+            <div style="text-align: center; color: var(--muted); padding: 10px; font-size: 12px;">No active subscriptions</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="main-history">
+        <div class="card" style="border-radius: 24px; margin-bottom: 24px;">
+            <div class="card-header" style="padding: 20px 24px; background: transparent;">
+                <span class="card-title" style="font-size: 16px; font-weight: 900;">🧾 Billing History</span>
+                <a href="{% url 'bill_generate' %}" class="btn btn-primary btn-sm">⚡ New Bill</a>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Period</th>
+                            <th>Grand Total</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in bills %}
+                        <tr>
+                            <td class="font-mono" style="font-weight: 800; color: var(--primary);">#{{ b.bill_number }}</td>
+                            <td style="font-size: 12px; font-weight: 600; color: var(--muted);">{{ b.from_date|date:"d M" }} - {{ b.to_date|date:"d M" }}</td>
+                            <td class="font-mono" style="font-weight: 800;">Rs.{{ b.grand_total }}</td>
+                            <td>
+                                {% if b.status == 'paid' %}
+                                <span class="badge" style="background: #d1fae5; color: #065f46;">Paid</span>
+                                {% else %}
+                                <span class="badge" style="background: #fee2e2; color: #991b1b;">Unpaid</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card" style="border-radius: 24px;">
+            <div class="card-header" style="padding: 20px 24px; background: transparent;">
+                <span class="card-title" style="font-size: 16px; font-weight: 900;">🚚 Distribution Log</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Product</th>
+                            <th>Qty</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in deliveries %}
+                        <tr {% if not d.is_delivered %}style="opacity: 0.5; background: #fff1f2;"{% endif %}>
+                            <td style="font-size: 13px; font-weight: 700;">{{ d.date|date:"d M" }}</td>
+                            <td>
+                                <div style="font-weight: 800; font-size: 12px;">{{ d.product.name }}</div>
+                            </td>
+                            <td class="font-mono" style="font-weight: 700;">{{ d.quantity }}L</td>
+                            <td class="font-mono" style="font-weight: 800; color: var(--primary);">Rs.{{ d.amount }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleDeleteModal() {
+    const modal = document.getElementById('deleteModal');
+    if (modal.style.display === 'flex') {
+        modal.style.display = 'none';
+    } else {
+        modal.style.display = 'flex';
+    }
+}
+
+// Close modal if clicking outside the white box
+window.onclick = function(event) {
+    const modal = document.getElementById('deleteModal');
+    if (event.target == modal) {
+        modal.style.display = "none";
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends 'delivery/base.html' %}
+{% block title %}{{ action }} Product – MilkDairy Pro{% endblock %}
+{% block page_title %}{{ action }} Product{% endblock %}
+{% block topbar_actions %}
+<a href="{% url 'product_list' %}" class="btn btn-secondary">← Back</a>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:500px;">
+<div class="card">
+  <div class="card-header"><span class="card-title">🥛 Product Details</span></div>
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Product Name *</label>
+        <input type="text" name="name" class="form-control" value="{{ product.name|default:'' }}" required placeholder="e.g. Full Cream Milk, Toned Milk">
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Unit *</label>
+        <select name="unit" class="form-control">
+          {% for val, label in unit_choices %}
+          <option value="{{ val }}" {% if product.unit == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Default Price (₹) *</label>
+        <input type="number" name="default_price" class="form-control" step="0.01" min="0"
+               value="{{ product.default_price|default:'' }}" required placeholder="e.g. 60.00">
+        <div class="form-hint">This is the base rate. Customer-specific prices can override this.</div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>Description</label>
+        <textarea name="description" class="form-control" rows="2" placeholder="Optional product details...">{{ product.description|default:'' }}</textarea>
+      </div>
+      {% if product %}
+      <div class="form-group" style="margin-bottom:20px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:400;">
+          <input type="checkbox" name="is_active" {% if product.is_active %}checked{% endif %} style="width:16px;height:16px;">
+          Product is Active
+        </label>
+      </div>
+      {% endif %}
+      <button type="submit" class="btn btn-primary btn-lg">
+        {% if action == 'Add' %}➕ Add Product{% else %}💾 Save Changes{% endif %}
+      </button>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,209 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Bills – Milky Way Pro{% endblock %}
+{% block page_title %}Invoices & Billing{% endblock %}
+{% block page_sub %}Manage customer balances and payments{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'bill_generate' %}" class="btn btn-primary">⚡ Generate Invoices</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── DYNAMIC GRID SYSTEM ── */
+    .bill-list-container { display: grid; grid-template-columns: 1fr; gap: 20px; }
+
+    /* ── MOBILE INVOICE CARDS (Hidden on Desktop) ── */
+    .mobile-bill-cards { display: none; }
+
+    @media (max-width: 992px) {
+        .desktop-bill-table { display: none; }
+        .mobile-bill-cards { display: block; }
+        
+        .invoice-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .invoice-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 6px; height: 100%;
+        }
+        .invoice-card.unpaid::before { background: var(--danger); }
+        .invoice-card.partial::before { background: var(--warning); }
+        .invoice-card.paid::before { background: var(--success); }
+
+        .inv-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .inv-no { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+        .inv-cust { font-size: 16px; font-weight: 900; color: var(--dark); margin-top: 2px; }
+        
+        .inv-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0; padding: 12px 0; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; }
+        .inv-stat-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+        .inv-stat-val { font-size: 15px; font-weight: 800; color: var(--dark); }
+
+        .inv-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 15px; }
+        .inv-btn { height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid var(--border); background: #f8fafc; text-decoration: none; font-size: 16px; }
+        
+        .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .filter-grid div:first-child { grid-column: span 2; }
+    }
+
+    /* ── DESKTOP TABLE POLISH ── */
+    .desktop-bill-table table { width: 100%; border-collapse: collapse; }
+    .desktop-bill-table th { background: #f8fafc; padding: 15px; text-align: left; font-size: 11px; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid var(--border); }
+    .desktop-bill-table td { padding: 15px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    .bill-row:hover { background: #fbfcfe; cursor: pointer; }
+
+    /* ── PILLS & UI ── */
+    .status-pill { display:inline-flex; align-items:center; gap:5px; padding:4px 12px; border-radius:99px; font-size:11px; font-weight:800; text-transform:uppercase; }
+    .s-unpaid  { background:#fee2e2; color:#991b1b; }
+    .s-partial { background:#fef3c7; color:#92400e; }
+    .s-paid    { background:#d1fae5; color:#065f46; }
+
+    .filter-card { background: white; border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="bill-list-container">
+
+    <div class="filter-card">
+        <form method="get" class="filter-grid" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+            <div style="flex: 2; min-width: 200px;">
+                <label style="font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block;">🔍 Find Invoice</label>
+                <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Customer name or bill #...">
+            </div>
+            <div style="flex: 1; min-width: 130px;">
+                <label style="font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block;">Status</label>
+                <select name="status" class="form-control" onchange="this.form.submit()">
+                    <option value="">All Status</option>
+                    <option value="unpaid" {% if status == 'unpaid' %}selected{% endif %}>Unpaid</option>
+                    <option value="partial" {% if status == 'partial' %}selected{% endif %}>Partial</option>
+                    <option value="paid" {% if status == 'paid' %}selected{% endif %}>Paid</option>
+                </select>
+            </div>
+            <div style="flex: 1; min-width: 130px;">
+                <label style="font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block;">Period</label>
+                <select name="month" class="form-control" onchange="this.form.submit()">
+                    <option value="">All Months</option>
+                    {% for num,name in months %}
+                        <option value="{{ num }}" {% if month == num|stringformat:"s" %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button type="submit" class="btn btn-primary" style="height: 45px; padding: 0 20px;">Filter</button>
+                <a href="{% url 'bill_list' %}" class="btn btn-secondary" style="height: 45px; display:flex; align-items:center;">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="card desktop-bill-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Bill #</th>
+                    <th>Customer</th>
+                    <th>Period</th>
+                    <th>Grand Total</th>
+                    <th>Paid</th>
+                    <th>Balance Due</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in page_obj %}
+                <tr class="bill-row" onclick="window.location='{% url 'bill_detail' b.pk %}'">
+                    <td class="font-mono" style="font-weight:800; color:var(--primary);">#{{ b.bill_number }}</td>
+                    <td>
+                        <div style="font-weight:800; color:var(--dark);">{{ b.customer.name }}</div>
+                        <div style="font-size:10px; color:var(--muted);">ID: {{ b.customer.customer_id }}</div>
+                    </td>
+                    <td style="font-size:12px; color:var(--muted);">{{ b.from_date|date:"M d" }} - {{ b.to_date|date:"M d" }}</td>
+                    <td class="font-mono" style="font-weight:700;">Rs.{{ b.grand_total|floatformat:0 }}</td>
+                    <td class="font-mono" style="color:var(--success);">Rs.{{ b.amount_paid|floatformat:0 }}</td>
+                    <td class="font-mono" style="font-weight:900; color:{% if b.amount_due > 0 %}var(--danger){% else %}var(--success){% endif %};">
+                        Rs.{{ b.amount_due|floatformat:0 }}
+                    </td>
+                    <td>
+                        <span class="status-pill {% if b.status == 'paid' %}s-paid{% elif b.status == 'partial' %}s-partial{% else %}s-unpaid{% endif %}">
+                            {{ b.get_status_display }}
+                        </span>
+                    </td>
+                    <td style="text-align: right;" onclick="event.stopPropagation();">
+                        <div style="display:flex; gap:5px; justify-content: flex-end;">
+                            <a href="{% url 'bill_pdf' b.pk %}" class="btn btn-secondary btn-sm" target="_blank">📄</a>
+                            <a href="{% url 'bill_whatsapp' b.pk %}" class="btn btn-success btn-sm">📱</a>
+                            <a href="{% url 'bill_edit' b.pk %}" class="btn btn-secondary btn-sm">✏️</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mobile-bill-cards">
+        {% for b in page_obj %}
+        <div class="invoice-card {{ b.status }}">
+            <div class="inv-header">
+                <div>
+                    <span class="inv-no">Invoice #{{ b.bill_number }}</span>
+                    <h3 class="inv-cust">{{ b.customer.name }}</h3>
+                </div>
+                <span class="status-pill {% if b.status == 'paid' %}s-paid{% elif b.status == 'partial' %}s-partial{% else %}s-unpaid{% endif %}">
+                    {{ b.get_status_display }}
+                </span>
+            </div>
+            
+            <div class="inv-stats">
+                <div>
+                    <span class="inv-stat-label">Grand Total</span>
+                    <div class="inv-stat-val">Rs.{{ b.grand_total|floatformat:0 }}</div>
+                </div>
+                <div style="text-align: right;">
+                    <span class="inv-stat-label">Balance Due</span>
+                    <div class="inv-stat-val" style="color:var(--danger)">Rs.{{ b.amount_due|floatformat:0 }}</div>
+                </div>
+            </div>
+
+            <div style="font-size: 11px; color: var(--muted); margin-bottom: 10px;">
+                📅 Period: {{ b.from_date|date:"d M" }} – {{ b.to_date|date:"d M, Y" }}
+            </div>
+
+            <div class="inv-actions">
+                <a href="{% url 'bill_detail' b.pk %}" class="inv-btn">👁️</a>
+                <a href="{% url 'bill_pdf' b.pk %}" class="inv-btn" target="_blank">📄</a>
+                <a href="{% url 'bill_whatsapp' b.pk %}" class="inv-btn" style="color:#25D366;">📱</a>
+                <a href="{% url 'bill_edit' b.pk %}" class="inv-btn">✏️</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}&status={{ status }}&q={{ q }}&month={{ month }}" class="page-link">←</a>
+        {% endif %}
+        
+        <span style="font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase;">
+            Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}&status={{ status }}&q={{ q }}&month={{ month }}" class="page-link">→</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

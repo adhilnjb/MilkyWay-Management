@@ -1,0 +1,5 @@
+db.sqlite3
+__pycache__/
+*.pyc
+setup_windows.bat
+setup_linux_mac.sh

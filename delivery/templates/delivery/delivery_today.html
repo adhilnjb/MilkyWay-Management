@@ -1,0 +1,263 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Daily Delivery – Milky Way Pro{% endblock %}
+{% block page_title %}Daily Delivery{% endblock %}
+{% block page_sub %}{{ sel_date|date:"l, d F Y" }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'delivery_list' %}" class="btn btn-secondary btn-sm">📋 Log</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── RESPONSIVE OVERRIDES ── */
+@media (max-width: 992px) {
+    .date-nav { flex-wrap: wrap; justify-content: center; }
+    .fbar-inner { flex-direction: column; align-items: stretch !important; }
+    .stabs { overflow-x: auto; padding-bottom: 5px; }
+    .abar { flex-direction: column; align-items: flex-start !important; gap: 12px !important; }
+    .abar div { width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .abar .btn { justify-content: center; }
+    .sfooter { flex-direction: column; gap: 15px; text-align: center; }
+    .dtbl thead { display: none; } /* Hide headers on mobile for card-style layout */
+    
+    /* Optional: If you want the table to scroll horizontally on mobile */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+
+/* ── EXISTING STYLES (NO CHANGES) ── */
+.date-nav { display:flex; align-items:center; gap:8px; background:white; border:1px solid var(--border); border-radius:var(--radius); padding:10px 16px; margin-bottom:12px; box-shadow:var(--shadow); }
+.date-nav a { color:var(--text); text-decoration:none; padding:5px 10px; border-radius:6px; border:1px solid var(--border); font-size:13px; font-weight:600; transition:all .15s; }
+.date-nav a:hover { background:var(--primary); color:white; border-color:var(--primary); }
+.date-nav input[type=date] { border:1.5px solid var(--primary); border-radius:8px; padding:6px 12px; font-size:14px; font-family:inherit; font-weight:700; color:var(--primary); }
+
+.fbar { background:white; border:1px solid var(--border); border-radius:var(--radius); padding:12px 16px; margin-bottom:12px; box-shadow:var(--shadow); }
+.fbar-inner { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+.fg { display:flex; flex-direction:column; gap:4px; }
+.flb { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+.fc { padding:7px 10px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; font-family:inherit; color:var(--text); background:white; }
+
+.stabs { display:flex; gap:5px; }
+.stab { padding:5px 12px; border-radius:99px; font-size:12px; font-weight:700; border:2px solid var(--border); text-decoration:none; color:var(--muted); background:white; transition:all .15s; white-space:nowrap; }
+.stab.on { background:var(--primary); border-color:var(--primary); color:white; }
+.stab.green-on { background:var(--success); border-color:var(--success); color:white; }
+.stab.red-on { background:var(--danger); border-color:var(--danger); color:white; }
+
+.abar { display:flex; gap:8px; flex-wrap:wrap; background:white; border:1px solid var(--border); border-radius:var(--radius); padding:10px 16px; margin-bottom:10px; align-items:center; box-shadow:var(--shadow); }
+
+.dtbl { width:100%; border-collapse:collapse; }
+.dtbl thead th { background:#f8fafc; padding:12px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); border-bottom:2px solid var(--border); white-space:nowrap; position:sticky; top:0; z-index:10; }
+.dtbl tbody td { padding:12px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.dtbl tbody tr.rd { background:#f0fdf4; } 
+.dtbl tbody tr.rm { background:#fff8f8; } 
+.dtbl tbody tr.ru { background:#fffbeb; }
+
+.qi { width:82px; padding:8px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; font-weight:700; font-family:'JetBrains Mono',monospace; text-align:center; }
+.qb { display:flex; gap:3px; margin-top:4px; }
+.qb button { padding:4px 8px; border-radius:5px; font-size:10px; font-weight:700; border:1.5px solid var(--border); background:white; cursor:pointer; }
+
+.dt { width:42px; height:42px; border-radius:50%; border:2px solid var(--border); background:white; display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; user-select:none; }
+.dt.del { background:var(--success); border-color:var(--success); color:white; }
+.dt.mis { background:#fee2e2; border-color:var(--danger); color:var(--danger); }
+
+.amt-cell { font-family:'JetBrains Mono',monospace; font-weight:700; font-size:14px; }
+.sfooter { position:sticky; bottom:0; background:white; border-top:2px solid var(--primary); padding:15px 20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 -4px 20px rgba(0,0,0,.1); z-index:100; }
+.prog-wrap { background:#e2e8f0; border-radius:99px; height:8px; overflow:hidden; margin-top:6px; }
+.prog-bar { height:8px; border-radius:99px; background:linear-gradient(90deg,var(--success),#34d399); transition:width .4s; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="date-nav">
+  <a href="?date={{ yesterday }}">← Prev</a>
+  <input type="date" id="datePicker" value="{{ sel_date|date:'Y-m-d' }}" onchange="window.location='?date='+this.value">
+  {% if sel_date < today %}
+  <a href="?date={{ tomorrow }}">Next →</a>
+  {% endif %}
+  <a href="?date={{ today|date:'Y-m-d' }}" class="btn-primary" style="color:white; padding: 6px 12px; border-radius:6px; text-decoration:none; font-size:13px; font-weight:600;">Today</a>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:15px;">
+  <div class="stat-card blue" style="padding:15px;">
+    <div class="stat-value" id="sc-del" style="font-size:20px;">{{ total_delivered }}/{{ rows|length }}</div>
+    <div class="stat-label">Delivery Progress</div>
+    <div class="prog-wrap">
+      <div class="prog-bar" id="prog-bar" style="width:{% if rows %}{% widthratio total_delivered rows|length 100 %}%{% else %}0%{% endif %};"></div>
+    </div>
+  </div>
+  <div class="stat-card amber" style="padding:15px;">
+    <div class="stat-value" id="sc-qty" style="font-size:20px;">{{ total_qty|floatformat:1 }}L</div>
+    <div class="stat-label">Total Volume</div>
+  </div>
+  <div class="stat-card green" style="padding:15px;">
+    <div class="stat-value" id="sc-rev" style="font-size:20px;">₹{{ total_amount|floatformat:0 }}</div>
+    <div class="stat-label">Total Revenue</div>
+  </div>
+</div>
+
+<div class="fbar">
+  <form method="get">
+    <div class="fbar-inner">
+      <div class="fg">
+        <div class="flb">🔍 Search</div>
+        <input type="text" name="search" value="{{ filter_search }}" class="fc" placeholder="Name/Phone...">
+      </div>
+      <div class="fg">
+        <div class="flb">🗺️ Area</div>
+        <select name="area" class="fc" onchange="this.form.submit()">
+          <option value="">All Areas</option>
+          {% for v,l in area_choices %}
+            <option value="{{ v }}" {% if filter_area == v %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg">
+        <div class="flb">Filter Status</div>
+        <div class="stabs">
+          <a href="?date={{ sel_date|date:'Y-m-d' }}&area={{ filter_area }}" class="stab {% if not filter_status %}on{% endif %}">All</a>
+          <a href="?date={{ sel_date|date:'Y-m-d' }}&area={{ filter_area }}&status=pending" class="stab {% if filter_status == 'pending' %}red-on{% endif %}">⏳ Pending</a>
+          <a href="?date={{ sel_date|date:'Y-m-d' }}&area={{ filter_area }}&status=delivered" class="stab {% if filter_status == 'delivered' %}green-on{% endif %}">✅ Done</a>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+    </div>
+    <input type="hidden" name="date" value="{{ sel_date|date:'Y-m-d' }}">
+  </form>
+</div>
+
+<div class="abar">
+  <strong id="rowCount">{{ rows|length }} Records</strong>
+  <div style="display:flex; gap:8px;">
+    <button type="button" onclick="markAll(true)" class="btn btn-success btn-sm">✓ All</button>
+    <button type="button" onclick="markAll(false)" class="btn btn-secondary btn-sm">✗ None</button>
+    <button type="button" onclick="resetQty()" class="btn btn-secondary btn-sm">🔄 Reset</button>
+  </div>
+</div>
+
+<form method="post" action="{% url 'delivery_bulk_update' %}" id="dForm">
+{% csrf_token %}
+<input type="hidden" name="date" value="{{ sel_date|date:'Y-m-d' }}">
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="dtbl" id="dTable">
+      <thead>
+        <tr>
+          <th>Customer & Product</th>
+          <th>Qty</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody id="dBody">
+      {% for row in rows %}
+        {% for sr in row.sub_rows %}
+        {% with c=row.customer sub=sr.sub d=sr.delivery %}
+        <tr id="row-{{ c.id }}-{{ sub.product.id }}" data-cid="{{ c.id }}" data-pid="{{ sub.product.id }}" data-qty="{{ d.quantity|default:sub.quantity }}" data-price="{{ sub.price|default:sub.product.default_price }}" data-default="{{ sub.quantity }}" data-delivered="{% if d and not d.is_delivered %}0{% else %}1{% endif %}">
+          <td>
+            <div style="font-weight:800; font-size:14px;">{{ c.name }}</div>
+            <div style="font-size:11px; color:var(--primary); font-weight:700;">{{ sub.product.name }} | {{ c.get_area_display }}</div>
+          </td>
+          <td>
+            <input type="number" name="qty_{{ c.id }}_{{ sub.product.id }}" id="qi-{{ c.id }}-{{ sub.product.id }}" class="qi" step="0.25" value="{{ d.quantity|default:sub.quantity }}" oninput="onQtyChange('{{ c.id }}-{{ sub.product.id }}', this.value)">
+            <div class="qb">
+              <button type="button" onclick="setQty('{{ c.id }}-{{ sub.product.id }}', 0.5)">.5</button>
+              <button type="button" onclick="setQty('{{ c.id }}-{{ sub.product.id }}', 1)">1</button>
+            </div>
+          </td>
+          <td class="amt-cell" id="amt-{{ c.id }}-{{ sub.product.id }}">₹0.00</td>
+          <td>
+            <div class="dt" id="tog-{{ c.id }}-{{ sub.product.id }}" onclick="toggleDel('{{ c.id }}-{{ sub.product.id }}')">✓</div>
+            <input type="checkbox" name="delivered_{{ c.id }}_{{ sub.product.id }}" id="cb-{{ c.id }}-{{ sub.product.id }}" style="display:none;">
+          </td>
+          <td>
+            <input type="text" name="reason_{{ c.id }}_{{ sub.product.id }}" id="rsn-{{ c.id }}-{{ sub.product.id }}" class="form-control" style="font-size:11px; min-width:80px;" value="{{ d.not_delivered_reason|default:'' }}" placeholder="Reason...">
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sfooter">
+    <div style="font-size:13px; font-weight:700;">
+      <span id="fDel" style="color:var(--success);">0</span> Done · 
+      <span id="fQty" style="color:var(--primary);">0L</span> · 
+      <span id="fAmt">₹0</span>
+    </div>
+    <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; max-width: 300px; justify-content: center;">💾 Save All Updates</button>
+  </div>
+</div>
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const S = {}; 
+document.querySelectorAll('#dBody tr[data-cid]').forEach(tr => {
+    const key = `${tr.dataset.cid}-${tr.dataset.pid}`;
+    S[key] = { 
+        delivered: tr.dataset.delivered !== '0', 
+        qty: parseFloat(tr.dataset.qty) || 0, 
+        price: parseFloat(tr.dataset.price) || 0, 
+        defaultQty: parseFloat(tr.dataset.default) || 0 
+    };
+});
+
+function renderRow(key) {
+    const r = S[key];
+    const tr = document.getElementById(`row-${key}`);
+    const tog = document.getElementById(`tog-${key}`);
+    const cb = document.getElementById(`cb-${key}`);
+    const rsn = document.getElementById(`rsn-${key}`);
+    const qi = document.getElementById(`qi-${key}`);
+    const amtEl = document.getElementById(`amt-${key}`);
+
+    if (r.delivered) {
+        tr.className = 'rd';
+        tog.className = 'dt del';
+        tog.textContent = '✓';
+        if (rsn) rsn.style.visibility = 'hidden';
+        if (qi) qi.style.opacity = '1';
+    } else {
+        tr.className = 'rm';
+        tog.className = 'dt mis';
+        tog.textContent = '✗';
+        if (rsn) rsn.style.visibility = 'visible';
+        if (qi) qi.style.opacity = '0.5';
+    }
+    if (cb) cb.checked = r.delivered;
+    const amt = r.delivered ? (r.qty * r.price) : 0;
+    amtEl.textContent = '₹' + amt.toFixed(2);
+    updateFooter();
+}
+
+function toggleDel(key) { S[key].delivered = !S[key].delivered; renderRow(key); }
+function onQtyChange(key, val) { S[key].qty = parseFloat(val) || 0; renderRow(key); }
+function setQty(key, qty) {
+    document.getElementById(`qi-${key}`).value = qty;
+    S[key].qty = qty;
+    renderRow(key);
+}
+function markAll(del) { Object.keys(S).forEach(k => { S[k].delivered = del; renderRow(k); }); }
+function resetQty() { Object.keys(S).forEach(k => { S[k].qty = S[k].defaultQty; document.getElementById(`qi-${k}`).value = S[k].qty; renderRow(k); }); }
+
+function updateFooter() {
+    let del = 0, qty = 0, amt = 0;
+    Object.keys(S).forEach(k => {
+        if (S[k].delivered) { del++; qty += S[k].qty; amt += (S[k].qty * S[k].price); }
+    });
+    document.getElementById('fDel').textContent = del;
+    document.getElementById('fQty').textContent = qty.toFixed(1) + 'L';
+    document.getElementById('fAmt').textContent = '₹' + amt.toFixed(2);
+    const pct = Object.keys(S).length > 0 ? (del / Object.keys(S).length) * 100 : 0;
+    if (document.getElementById('prog-bar')) document.getElementById('prog-bar').style.width = pct + '%';
+}
+
+Object.keys(S).forEach(k => renderRow(k));
+</script>
+{% endblock %}

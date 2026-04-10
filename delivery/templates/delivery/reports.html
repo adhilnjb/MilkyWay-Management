@@ -1,0 +1,226 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Reports – Milky Way Pro{% endblock %}
+{% block page_title %}Monthly Reports{% endblock %}
+{% block page_sub %}Sales, delivery and expense analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── RESPONSIVE GRID OVERRIDES ── */
+.reports-grid-top {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.reports-grid-mid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+@media (max-width: 1024px) {
+    .reports-grid-top, .reports-grid-mid {
+        grid-template-columns: 1fr; /* Stack charts and tables on mobile */
+    }
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* Better stat stacking */
+    }
+}
+
+@media (max-width: 600px) {
+    .stats-grid {
+        grid-template-columns: 1fr 1fr; /* 2 stats per row on small phones */
+    }
+    .stat-value { font-size: 20px !important; }
+    .filter-row { flex-direction: column; align-items: stretch !important; }
+}
+
+/* ── TABLE WRAP ── */
+.table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── CHART RESIZING ── */
+.chart-box {
+    position: relative;
+    height: 250px;
+    width: 100%;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:18px;">
+  <div class="card-body" style="padding:14px 20px;">
+    <form method="get" class="filter-row" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <div style="flex:1; min-width:120px;">
+        <label style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px;letter-spacing:1px;">Select Month</label>
+        <select name="month" class="form-control" onchange="this.form.submit()">
+          {% for num,name in months %}<option value="{{ num }}" {% if month == num %}selected{% endif %}>{{ name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div style="flex:1; min-width:100px;">
+        <label style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px;letter-spacing:1px;">Year</label>
+        <input type="number" name="year" class="form-control" value="{{ year }}" onchange="this.form.submit()">
+      </div>
+      <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">📊 Update Report</button>
+    </form>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card blue">
+    <div class="stat-icon">📦</div>
+    <div class="stat-value">{{ total_qty|floatformat:1 }}L</div>
+    <div class="stat-label">Total Volume</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-icon">💰</div>
+    <div class="stat-value">Rs.{{ total_revenue|floatformat:0 }}</div>
+    <div class="stat-label">Total Revenue</div>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-icon">💸</div>
+    <div class="stat-value">Rs.{{ total_expense|floatformat:0 }}</div>
+    <div class="stat-label">Total Expenses</div>
+  </div>
+  <div class="stat-card {% if net_profit >= 0 %}green{% else %}red{% endif %}">
+    <div class="stat-icon">💹</div>
+    <div class="stat-value" style="font-size:20px;">Rs.{{ net_profit|floatformat:0 }}</div>
+    <div class="stat-label">Net Profit</div>
+  </div>
+</div>
+
+<div class="reports-grid-top">
+  <div class="card">
+    <div class="card-header"><span class="card-title">📈 Daily Revenue Trend</span></div>
+    <div class="card-body">
+        <div class="chart-box"><canvas id="dailyChart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">💸 Expense Split</span></div>
+    <div class="card-body" style="display:flex; justify-content:center;">
+        <div class="chart-box" style="max-width:250px;"><canvas id="expPie"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="reports-grid-mid">
+  <div class="card">
+    <div class="card-header"><span class="card-title">🏆 Customer Performance</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Customer</th><th>Product Split</th><th style="text-align:right;">Revenue</th></tr>
+        </thead>
+        <tbody>
+          {% for row in monthly_summary %}
+          <tr>
+            <td>
+              <div style="font-weight:800;font-size:13px;">{{ row.name }}</div>
+              <div style="font-size:10px;color:var(--muted);">{{ row.customer_id }}</div>
+            </td>
+            <td>
+              {% for prod in row.products %}
+              <div style="font-size:11px; margin-bottom:2px;">
+                📦 {{ prod.product__name }} ({{ prod.qty|floatformat:1 }}L)
+              </div>
+              {% endfor %}
+            </td>
+            <td class="font-mono fw-800" style="color:var(--primary); text-align:right;">
+                Rs.{{ row.total_revenue|floatformat:0 }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">🏷️ Expense Categories</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Category</th><th style="text-align:right;">Total Amount</th></tr></thead>
+        <tbody>
+          {% for e in monthly_expenses %}
+          <tr>
+            <td style="font-weight:600;">{{ e.category__icon|default:'🌿' }} {{ e.category__name|default:'Other' }}</td>
+            <td class="font-mono fw-800" style="color:var(--danger); text-align:right;">Rs.{{ e.total|floatformat:2 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span class="card-title">📅 Daily Performance Log</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Status</th><th>Volume</th><th>Revenue</th><th>Expense</th></tr>
+      </thead>
+      <tbody>
+        {% for d in daily_totals %}
+        <tr {% if d.amount == 0 %}style="opacity:0.6; background:#f9fafb;"{% endif %}>
+          <td style="font-weight:700;">{{ d.date|date:"d M" }}</td>
+          <td>
+            {% if d.amount > 0 %}<span class="badge badge-success">Active</span>
+            {% else %}<span class="badge" style="background:#e5e7eb;">Idle</span>{% endif %}
+          </td>
+          <td class="font-mono">{{ d.qty|default:"0" }}L</td>
+          <td class="font-mono fw-800" style="color:var(--primary);">Rs.{{ d.amount|default:"0" }}</td>
+          <td class="font-mono" style="color:var(--danger);">Rs.{{ d.expense|default:"0" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Logic remains same, added responsive:true and height handling
+const dLabels = [{% for d in daily_totals %}"{{ d.date|date:'d M' }}",{% endfor %}];
+const dRev = [{% for d in daily_totals %}{{ d.amount|floatformat:2 }},{% endfor %}];
+
+if (dLabels.length) {
+  new Chart(document.getElementById('dailyChart'), {
+    type: 'bar',
+    data: {
+      labels: dLabels,
+      datasets: [{ label:'Revenue', data:dRev, backgroundColor:'rgba(13, 115, 119, 0.2)', borderColor:'#0d7377', borderWidth:2, borderRadius:4 }]
+    },
+    options: { 
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 9 } } } }
+    }
+  });
+}
+
+const eLabels = [{% for e in monthly_expenses %}"{{ e.category__name|default:'Other' }}",{% endfor %}];
+const eData = [{% for e in monthly_expenses %}{{ e.total|floatformat:2 }},{% endfor %}];
+
+if (eLabels.length) {
+  new Chart(document.getElementById('expPie'), {
+    type: 'doughnut',
+    data: {
+      labels: eLabels,
+      datasets: [{ data: eData, backgroundColor: ['#ef4444','#f59e0b','#0d7377','#10b981','#8b5cf6'], borderWidth: 2 }]
+    },
+    options: { 
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+    }
+  });
+}
+</script>
+{% endblock %}

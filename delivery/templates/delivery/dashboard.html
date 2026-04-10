@@ -1,0 +1,299 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Dashboard – Milky Way Pro{% endblock %}
+{% block page_title %}Sales Dashboard{% endblock %}
+{% block page_sub %}{{ today|date:"l, d F Y" }}{% endblock %}
+
+{% block topbar_actions %}
+<div class="topbar-btns">
+    <a href="{% url 'delivery_today' %}" class="btn btn-primary">🚚 Today</a>
+    <a href="{% url 'bill_generate' %}" class="btn btn-secondary">🧾 Bills</a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── SYSTEM GRIDS ── */
+    .dashboard-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    .dashboard-equal-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    /* ── MOBILE & TABLET ADAPTATION ── */
+    @media (max-width: 1024px) {
+        .dashboard-row, .dashboard-equal-row {
+            grid-template-columns: 1fr; /* Stack into single column */
+        }
+        .stats-grid {
+            grid-template-columns: 1fr 1fr; /* Keep 2x2 grid on tablets */
+        }
+    }
+
+    @media (max-width: 600px) {
+        .stats-grid {
+            grid-template-columns: 1fr 1fr; 
+            gap: 12px;
+        }
+        .stat-card { padding: 16px !important; }
+        .stat-value { font-size: 20px !important; }
+        .topbar-btns { display: flex; gap: 6px; }
+        .topbar-btns .btn { padding: 8px 12px; font-size: 11px; }
+        
+        /* Force tables to be scrollable on small screens */
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .table-wrap table {
+            min-width: 450px;
+        }
+    }
+
+    .chart-container {
+        position: relative;
+        height: 280px;
+        width: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="stats-grid">
+  <div class="stat-card blue">
+    <div class="stat-icon">👥</div>
+    <div class="stat-value">{{ total_customers }}</div>
+    <div class="stat-label">Active Customers</div>
+    <div style="font-size: 10px; color: var(--success); font-weight: 700; margin-top: 5px;">● SYSTEM ONLINE</div>
+  </div>
+  
+  <div class="stat-card green">
+    <div class="stat-icon">🥛</div>
+    <div class="stat-value">{{ today_qty|floatformat:1 }}L</div>
+    <div class="stat-label">Delivered Today</div>
+    <div style="font-size: 11px; font-weight: 700; color: var(--success);">Rs.{{ today_revenue|floatformat:0 }} collected</div>
+  </div>
+  
+  <div class="stat-card amber">
+    <div class="stat-icon">📦</div>
+    <div class="stat-value">{{ month_qty|floatformat:0 }}L</div>
+    <div class="stat-label">Monthly Volume</div>
+    <div style="font-size: 11px; font-weight: 700; color: var(--primary);">Rs.{{ month_revenue|floatformat:0 }} total</div>
+  </div>
+  
+  <div class="stat-card red">
+    <div class="stat-icon">🧾</div>
+    <div class="stat-value">{{ pending_bills }}</div>
+    <div class="stat-label">Pending Invoices</div>
+    <div style="font-size: 11px; font-weight: 700; color: var(--danger);">Rs.{{ pending_amount|floatformat:0 }} due</div>
+  </div>
+</div>
+
+<div class="dashboard-row">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📈 Weekly Performance</span>
+      <span class="badge badge-success">Live</span>
+    </div>
+    <div class="card-body">
+      <div class="chart-container"><canvas id="weekChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">🗺️ Zone Distribution</span></div>
+    <div class="card-body" style="display:flex; justify-content:center; align-items:center;">
+      <div style="height: 220px; width: 100%; max-width: 250px;"><canvas id="areaChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-equal-row">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">💸 Month Expenses</span>
+      <a href="{% url 'expense_list' %}" class="btn btn-secondary btn-sm">View All</a>
+    </div>
+    <div class="card-body" style="padding: 10px 20px;">
+      {% if exp_by_cat %}
+        {% for e in exp_by_cat|slice:":5" %}
+        <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f1f5f9;">
+          <div style="font-size:22px; width:35px; text-align:center;">{{ e.category__icon|default:'🌿' }}</div>
+          <div style="flex:1;">
+            <div style="font-size:13px; font-weight:800; color:var(--dark);">{{ e.category__name|default:'Other' }}</div>
+            <div style="background:#f1f5f9; border-radius:99px; height:5px; margin-top:6px; overflow:hidden;">
+              <div style="background:var(--danger); height:5px; width:{% widthratio e.total month_expenses 100 %}%;"></div>
+            </div>
+          </div>
+          <span class="font-mono" style="font-weight:900; color:var(--danger); font-size:13px;">Rs.{{ e.total|floatformat:0 }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="text-align:center; padding:30px; color:var(--muted);">No expenses.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">⚠️ Pending Delivery</span>
+      <a href="{% url 'delivery_today' %}" class="btn btn-primary btn-sm">Start</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <tbody>
+          {% for c in missed_customers|slice:":5" %}
+          <tr>
+            <td style="padding: 15px;">
+              <div style="font-weight:800; font-size:14px; color:var(--dark);">{{ c.name }}</div>
+              <div style="font-size:10px; color:var(--muted); font-weight:600;">{{ c.get_area_display }}</div>
+            </td>
+            <td style="text-align: right; padding-right: 15px;">
+                <button onclick="quickDeliver({{ c.id }}, '{{ today|date:'Y-m-d' }}')" class="btn btn-primary" style="padding: 6px 12px; font-size: 11px;" id="qbtn-{{ c.id }}">✓ Done</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="border-radius: var(--radius); overflow: hidden; margin-bottom: 24px;">
+    <div class="card-header" style="padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; background: transparent; border-bottom: 1px solid #f1f5f9;">
+        <span class="card-title" style="font-size: 15px; font-weight: 800; color: var(--dark); display: flex; align-items: center; gap: 8px;">
+            <span>🚚</span> Recent Distribution Log
+        </span>
+        <a href="{% url 'delivery_list' %}" class="btn btn-secondary btn-sm" style="padding: 6px 12px; font-size: 11px;">View Full History</a>
+    </div>
+
+    <div class="table-wrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <table style="width: 100%; border-collapse: collapse; min-width: 550px;">
+            <thead>
+                <tr style="background: #f8fafc;">
+                    <th style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Customer</th>
+                    <th style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Date</th>
+                    <th style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Quantity</th>
+                    <th style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Collection</th>
+                    <th style="padding: 14px 20px; text-align: right; font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in recent_deliveries|slice:":10"|dictsort:"date" reversed %}
+                <tr style="border-bottom: 1px solid #f1f5f9; transition: 0.2s;" onmouseover="this.style.background='#fbfcfe'" onmouseout="this.style.background='transparent'">
+                    <td style="padding: 15px 20px;">
+                        <div style="font-weight: 800; color: var(--dark); font-size: 14px;">{{ d.customer.name }}</div>
+                    </td>
+                    <td style="padding: 15px 20px;">
+                        <div style="font-size: 12px; font-weight: 600; color: var(--muted);">{{ d.date|date:"d M, Y" }}</div>
+                    </td>
+                    <td style="padding: 15px 20px;">
+                        <div class="font-mono" style="font-weight: 700; font-size: 13px; color: var(--dark);">{{ d.quantity }}L</div>
+                    </td>
+                    <td style="padding: 15px 20px;">
+                        <div class="font-mono" style="font-weight: 800; color: var(--primary); font-size: 13px;">Rs.{{ d.amount|floatformat:0 }}</div>
+                    </td>
+                    <td style="padding: 15px 20px; text-align: right;">
+                        {% if d.is_delivered %}
+                            <span class="badge" style="background:#d1fae5; color:#065f46; font-size: 10px; padding: 5px 12px; border-radius: 8px;">Delivered</span>
+                        {% else %}
+                            <span class="badge" style="background:#fee2e2; color:#991b1b; font-size: 10px; padding: 5px 12px; border-radius: 8px;">Missed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="padding: 40px; text-align: center; color: var(--muted); font-size: 13px;">
+                        No delivery logs recorded yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const primaryColor = '#0d7377';
+const accentColor = '#f59e0b';
+const textColor = '#64748b';
+
+// Weekly Chart logic
+const weekLabels = {{ chart_labels|safe }};
+const weekQty = {{ chart_qty|safe }};
+const weekRev = {{ chart_rev|safe }};
+
+new Chart(document.getElementById('weekChart'), {
+  data: {
+    labels: weekLabels,
+    datasets: [
+      { type: 'bar', label: 'Liters', data: weekQty, backgroundColor: 'rgba(13, 115, 119, 0.15)', borderColor: primaryColor, borderWidth: 2, borderRadius: 6, yAxisID: 'y' },
+      { type: 'line', label: 'Revenue', data: weekRev, borderColor: accentColor, backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, borderWidth: 3, pointRadius: 4, yAxisID: 'y1' }
+    ]
+  },
+  options: { 
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: { weight: '700', size: 11 } } } },
+    scales: { 
+        y: { beginAtZero: true, ticks: { color: textColor } }, 
+        y1: { position: 'right', grid: { display: false }, ticks: { color: accentColor } }
+    }
+  }
+});
+
+// Zone Chart logic
+const areaRaw = {{ area_data|safe }};
+if (areaRaw.length) {
+    new Chart(document.getElementById('areaChart'), {
+        type: 'doughnut',
+        data: {
+            labels: areaRaw.map(d => d.area),
+            datasets: [{ 
+                data: areaRaw.map(d => d.c), 
+                backgroundColor: [primaryColor, accentColor, '#10b981', '#ef4444', '#8b5cf6'],
+                borderWidth: 5, borderColor: '#ffffff'
+            }]
+        },
+        options: { 
+            responsive: true, maintainAspectRatio: false, cutout: '75%',
+            plugins: { legend: { position: 'bottom', labels: { font: { weight: '700', size: 10 } } } } 
+        }
+    });
+}
+
+function quickDeliver(custId, date) {
+    const btn = document.getElementById('qbtn-' + custId);
+    btn.innerHTML = '⏳';
+    fetch("{% url 'delivery_quick_add' %}", {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},
+        body: JSON.stringify({customer_id: custId, date: date, is_delivered: true})
+    })
+    .then(r => r.json())
+    .then(d => {
+        if(d.success) {
+            btn.innerHTML = '✅';
+            btn.style.background = '#10b981';
+            setTimeout(() => location.reload(), 600);
+        }
+    });
+}
+</script>
+{% endblock %}

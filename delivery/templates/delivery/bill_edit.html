@@ -1,0 +1,137 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Edit Bill – Milky Way Pro{% endblock %}
+{% block page_title %}Edit Bill #{{ bill.bill_number }}{% endblock %}
+{% block page_sub %}{{ bill.customer.name }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'bill_detail' bill.pk %}" class="btn btn-secondary btn-sm">← Back</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── RESPONSIVE OVERRIDES ── */
+.edit-container {
+    max-width: 540px;
+    margin: 0 auto;
+}
+
+@media (max-width: 600px) {
+    .edit-container {
+        max-width: 100%;
+    }
+    .summary-grid {
+        grid-template-columns: 1fr !important; /* Stack stats on small phones */
+        gap: 12px !important;
+    }
+    .btn-group-mobile {
+        flex-direction: column;
+    }
+    .btn-group-mobile .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Form Polish */
+.form-group label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.calc-box {
+    background: var(--primary-pale);
+    border: 1.5px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-container">
+<div class="card">
+  <div class="card-header"><span class="card-title">✏️ Adjust Bill Calculations</span></div>
+  <div class="card-body">
+
+    <div style="background: #f1f5f9; border-radius:12px; padding:16px; margin-bottom:24px; border:1px solid var(--border);">
+      <div class="summary-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; font-size:13px;">
+        <div><span style="color:var(--muted); font-weight:600;">Total Qty:</span> <strong class="font-mono">{{ bill.total_quantity }}L</strong></div>
+        <div><span style="color:var(--muted); font-weight:600;">Monthly Total:</span> <strong class="font-mono">Rs. {{ bill.total_amount }}</strong></div>
+        <div><span style="color:var(--muted); font-weight:600;">Prev Balance:</span> <strong class="font-mono">Rs. {{ bill.previous_balance }}</strong></div>
+      </div>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="form-group" style="margin-bottom:20px;">
+        <label>Discount Amount (Rs.)</label>
+        <input type="number" name="discount" class="form-control" step="0.01" min="0"
+               value="{{ bill.discount }}" id="discountInp" oninput="recalc()" 
+               inputmode="decimal"> <p style="font-size:11px; color:var(--muted); margin-top:6px;">This amount is subtracted from the monthly total.</p>
+      </div>
+
+      <div class="calc-box">
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px; color:#475569;">
+          <span>Net Amount (Current):</span>
+          <strong id="netAmtPreview" class="font-mono">Rs. {{ bill.net_amount }}</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:900; color:var(--primary); padding-top:8px; border-top:1px dashed #bfdbfe;">
+          <span>Grand Total:</span>
+          <strong id="grandPreview" class="font-mono">Rs. {{ bill.grand_total }}</strong>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:20px;">
+        <label>Payment Status</label>
+        <select name="status" class="form-control">
+          {% for val,lbl in status_choices %}
+            <option value="{{ val }}" {% if bill.status == val %}selected{% endif %}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:24px;">
+        <label>Internal Remarks</label>
+        <textarea name="notes" class="form-control" rows="3"
+                  placeholder="e.g. Discount given for bulk order...">{{ bill.notes }}</textarea>
+      </div>
+
+      <div class="btn-group-mobile" style="display:flex; gap:10px;">
+        <button type="submit" class="btn btn-primary btn-lg" style="flex:2; justify-content:center;">💾 Update Bill</button>
+        <a href="{% url 'bill_detail' bill.pk %}" class="btn btn-secondary btn-lg" style="flex:1; justify-content:center;">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Logic stays consistent with your model math
+const subTotal   = parseFloat("{{ bill.total_amount }}") || 0;
+const prevBal    = parseFloat("{{ bill.previous_balance }}") || 0;
+
+function recalc() {
+    const discInp = document.getElementById('discountInp');
+    const disc = parseFloat(discInp.value) || 0;
+    
+    const net = Math.max(0, subTotal - disc);
+    const grand = net + prevBal;
+    
+    // Smoothly update the Rs. values
+    document.getElementById('netAmtPreview').textContent = 'Rs. ' + net.toFixed(2);
+    document.getElementById('grandPreview').textContent = 'Rs. ' + grand.toFixed(2);
+}
+
+// Run once on load to ensure sync
+window.onload = recalc;
+</script>
+{% endblock %}

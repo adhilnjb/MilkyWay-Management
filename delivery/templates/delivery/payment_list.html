@@ -1,0 +1,199 @@
+{% extends 'delivery/base.html' %}
+{% block title %}Payments – Milky Way Pro{% endblock %}
+{% block page_title %}Collections History{% endblock %}
+{% block page_sub %}Manage and track all customer payments{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'payment_add' %}" class="btn btn-primary">➕ Record Payment</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── DYNAMIC GRID ── */
+    .payment-container { display: grid; grid-template-columns: 1fr; gap: 20px; }
+
+    /* ── PREMIUM SUMMARY CARD ── */
+    .summary-box {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border-radius: var(--radius);
+        padding: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.3);
+    }
+
+    /* ── MOBILE PAYMENT CARDS ── */
+    .mobile-payments { display: none; }
+
+    @media (max-width: 992px) {
+        .desktop-table { display: none; }
+        .mobile-payments { display: block; }
+        
+        .payment-card {
+            background: white;
+            border-radius: 20px;
+            padding: 18px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .pay-icon-box {
+            width: 50px; height: 50px;
+            background: #f1f5f9;
+            border-radius: 15px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; flex-shrink: 0;
+        }
+
+        .pay-info { flex: 1; }
+        .pay-info h4 { font-size: 15px; font-weight: 800; color: var(--dark); margin-bottom: 2px; }
+        .pay-info p { font-size: 11px; color: var(--muted); }
+
+        .pay-value { text-align: right; }
+        .pay-amt { font-size: 18px; font-weight: 900; color: #059669; display: block; }
+        
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .filter-grid div:first-child { grid-column: span 2; }
+        .summary-box { flex-direction: column; text-align: center; gap: 10px; }
+    }
+
+    /* ── DESKTOP TABLE ── */
+    .desktop-table table { width: 100%; border-collapse: collapse; }
+    .desktop-table th { background: #f8fafc; padding: 15px; text-align: left; font-size: 11px; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid var(--border); }
+    .desktop-table td { padding: 15px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+
+    /* ── FILTERS ── */
+    .filter-card { background: white; border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="payment-container">
+
+    <div class="summary-box">
+        <div>
+            <div style="font-size: 12px; font-weight: 800; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">💰 Total Collections</div>
+            <div style="font-size: 11px; opacity: 0.8;">Based on current filters</div>
+        </div>
+        <div class="font-mono" style="font-size: 32px; font-weight: 900;">Rs. {{ total|floatformat:2 }}</div>
+    </div>
+
+    <div class="filter-card">
+        <form method="get" class="filter-grid" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+            <div style="flex: 1; min-width: 200px;">
+                <label style="font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block;">Search Customer</label>
+                <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Name or Reference...">
+            </div>
+            <div style="flex: 1; min-width: 140px;">
+                <label style="font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block;">Method</label>
+                <select name="method" class="form-control" onchange="this.form.submit()">
+                    <option value="">All Methods</option>
+                    {% for v, l in method_choices %}
+                        <option value="{{ v }}" {% if method == v %}selected{% endif %}>{{ l }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="flex: 1; min-width: 140px;">
+                <label style="font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block;">Month</label>
+                <select name="month" class="form-control" onchange="this.form.submit()">
+                    <option value="">All Months</option>
+                    {% for num, name in months %}
+                        <option value="{{ num }}" {% if month == num|stringformat:"s" %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button type="submit" class="btn btn-primary" style="height: 45px; padding: 0 25px;">Filter</button>
+                <a href="{% url 'payment_list' %}" class="btn btn-secondary" style="height: 45px; display: flex; align-items: center;">Clear</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="card desktop-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Amount</th>
+                    <th>Method</th>
+                    <th>Reference</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in page_obj %}
+                <tr>
+                    <td style="font-size:12px; font-weight:700; color:var(--muted);">{{ p.payment_date|date:"d M Y" }}</td>
+                    <td>
+                        <a href="{% url 'customer_detail' p.customer.pk %}" style="font-weight:800; text-decoration:none; color:var(--dark);">{{ p.customer.name }}</a>
+                        <div style="font-size:10px; color:var(--muted);">ID: {{ p.customer.customer_id }}</div>
+                    </td>
+                    <td class="font-mono" style="font-size:16px; font-weight:900; color:#059669;">Rs. {{ p.amount|floatformat:0 }}</td>
+                    <td>
+                        <span class="badge badge-info" style="border-radius: 6px; padding: 6px 12px;">
+                            {% if p.payment_method == 'cash' %}💵{% elif p.payment_method == 'upi' %}📱{% else %}🏦{% endif %}
+                            {{ p.get_payment_method_display }}
+                        </span>
+                    </td>
+                    <td style="font-size:11px; color:var(--muted);">{{ p.reference_number|default:"—" }}</td>
+                    <td>
+                        <a href="{% url 'payment_delete' p.pk %}" class="btn btn-danger btn-sm" onclick="return confirm('Delete payment?')">🗑</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mobile-payments">
+        {% for p in page_obj %}
+        <div class="payment-card">
+            <div class="pay-icon-box">
+                {% if p.payment_method == 'cash' %}💵{% elif p.payment_method == 'upi' %}📱{% else %}🏦{% endif %}
+            </div>
+            <div class="pay-info">
+                <h4>{{ p.customer.name }}</h4>
+                <p>{{ p.payment_date|date:"d M Y" }} · {{ p.get_payment_method_display }}</p>
+                {% if p.reference_number %}<p style="font-family: monospace;">Ref: {{ p.reference_number }}</p>{% endif %}
+            </div>
+            <div class="pay-value">
+                <span class="pay-amt">Rs.{{ p.amount|floatformat:0 }}</span>
+                <a href="{% url 'payment_delete' p.pk %}" style="text-decoration:none; font-size: 14px; color: var(--danger); margin-top: 5px; display: inline-block;" onclick="return confirm('Delete?')">🗑 Delete</a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <div class="icon">💳</div>
+            <p>No payments found.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&method={{ method }}&month={{ month }}&year={{ year }}" class="page-link">←</a>
+        {% endif %}
+        
+        <span style="font-size:12px; font-weight:800; color:var(--muted);">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&method={{ method }}&month={{ month }}&year={{ year }}" class="page-link">→</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
