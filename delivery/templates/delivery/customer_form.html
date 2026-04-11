@@ -175,7 +175,108 @@
 
 {% block extra_js %}
 <script>
-// ... (Logic for addSubRow, removeSubRow, selectSched, updateCalculation, attachTriggers remains the same)
-// ...
+    let currentDays = 30; // Default for 'daily'
+
+    // 1. Add new product row
+    function addSubRow() {
+        const container = document.getElementById('subList');
+        const firstRow = container.querySelector('.sub-row');
+        const newRow = firstRow.cloneNode(true);
+
+        // Reset values in the new row
+        newRow.querySelectorAll('input').forEach(input => {
+            if(input.name === 'sub_qty') input.value = "1.0";
+            else input.value = "";
+        });
+        
+        // Ensure the "Select Product" option is chosen if it exists
+        const select = newRow.querySelector('select');
+        select.selectedIndex = 0;
+
+        container.appendChild(newRow);
+        attachTriggers();
+        updateCalculation();
+    }
+
+    // 2. Remove product row
+    function removeSubRow(btn) {
+        const rows = document.querySelectorAll('.sub-row');
+        if (rows.length > 1) {
+            btn.closest('.sub-row').remove();
+            updateCalculation();
+        } else {
+            alert("At least one product is required.");
+        }
+    }
+
+    // 3. Handle Schedule Selection
+    function selectSched(value, element, days) {
+        // Update hidden input
+        document.getElementById('scheduleInput').value = value;
+        
+        // Update UI styling
+        document.querySelectorAll('.sched-card').forEach(card => card.classList.remove('sel'));
+        element.classList.add('sel');
+        
+        // Update calculation variables
+        currentDays = days;
+        document.getElementById('daysCount').innerText = days;
+        updateCalculation();
+    }
+
+    // 4. Calculate Estimates
+    function updateCalculation() {
+        let dailyTotal = 0;
+        const rows = document.querySelectorAll('.sub-row');
+
+        rows.forEach(row => {
+            const productSelect = row.querySelector('select[name="sub_product"]');
+            const qtyInput = row.querySelector('input[name="sub_qty"]');
+            const priceInput = row.querySelector('input[name="sub_price"]');
+
+            const selectedOption = productSelect.options[productSelect.selectedIndex];
+            const defaultPrice = parseFloat(selectedOption.getAttribute('data-price')) || 0;
+            const customPrice = parseFloat(priceInput.value);
+            
+            // Use custom price if entered, otherwise use default product price
+            const price = !isNaN(customPrice) && customPrice > 0 ? customPrice : defaultPrice;
+            const qty = parseFloat(qtyInput.value) || 0;
+
+            dailyTotal += (price * qty);
+        });
+
+        const monthlyTotal = dailyTotal * currentDays;
+
+        // Update UI
+        document.getElementById('dayEst').innerText = `Rs. ${dailyTotal.toFixed(2)}`;
+        document.getElementById('monthEst').innerText = `Rs. ${monthlyTotal.toFixed(2)}`;
+    }
+
+    // 5. Attach Event Listeners
+    function attachTriggers() {
+        document.querySelectorAll('.sub-trigger').forEach(el => {
+            el.removeEventListener('input', updateCalculation);
+            el.addEventListener('input', updateCalculation);
+            
+            el.removeEventListener('change', updateCalculation);
+            el.addEventListener('change', updateCalculation);
+        });
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        attachTriggers();
+        // Set initial days based on existing selection
+        const activeSched = document.querySelector('.sched-card.sel');
+        if(activeSched) {
+            // Basic logic to determine initial days based on class/text if needed
+            const name = activeSched.querySelector('.s-name').innerText.toLowerCase();
+            if(name === 'alternate') currentDays = 15;
+            else if(name === 'weekdays') currentDays = 22;
+            else if(name === 'weekends') currentDays = 8;
+            else currentDays = 30;
+        }
+        updateCalculation();
+    });
 </script>
 {% endblock %}
