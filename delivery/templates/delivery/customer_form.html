@@ -29,6 +29,13 @@
     .sched-card .s-icon { font-size: 20px; margin-bottom: 5px; display: block; }
     .sched-card .s-name { font-size: 12px; font-weight: 800; color: var(--dark); }
 
+    /* Calendar Preview */
+    #calendar-preview { margin-top: 20px; border-top: 1px solid var(--border); pt: 20px; }
+    .cal-header-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 8px; }
+    .cal-header { font-size: 10px; font-weight: 900; color: var(--muted); text-align: center; }
+    #calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border-radius: 8px; transition: 0.3s; }
+
     /* Responsive Estimate Box */
     .estimate-card { 
         background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%); 
@@ -38,11 +45,6 @@
     .est-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid rgba(255,255,255,0.2); margin-top: 15px; padding-top: 15px; }
     .est-label { font-size: 10px; font-weight: 700; text-transform: uppercase; opacity: 0.8; }
     .est-val { font-size: 20px; font-weight: 900; }
-
-    /* Status Style */
-    .status-select { font-weight: 700; }
-    .status-active { color: var(--success); }
-    .status-inactive { color: var(--danger); }
 </style>
 {% endblock %}
 
@@ -69,12 +71,9 @@
                 <label>Account Status</label>
                 <select name="status" class="form-control status-select" id="id_status">
                     {% for v, l in status_choices %}
-                        <option value="{{ v }}" {% if customer.status == v %}selected{% elif not customer and v == 'active' %}selected{% endif %}>
-                            {{ l }}
-                        </option>
+                        <option value="{{ v }}" {% if customer.status == v %}selected{% elif not customer and v == 'active' %}selected{% endif %}>{{ l }}</option>
                     {% endfor %}
                 </select>
-                <small class="form-text text-muted">Inactive customers are hidden from the daily delivery route.</small>
             </div>
             <div class="form-group"><label>Joining Date</label><input type="date" name="joining_date" class="form-control" value="{{ customer.joining_date|date:'Y-m-d'|default:'' }}"></div>
         </div>
@@ -131,18 +130,27 @@
         <input type="hidden" name="delivery_schedule" id="scheduleInput" value="{{ customer.delivery_schedule|default:'daily' }}">
         
         <div class="sched-grid">
-            <div class="sched-card {% if customer.delivery_schedule == 'daily' or not customer %}sel{% endif %}" onclick="selectSched('daily', this, 30)">
+            <div class="sched-card {% if customer.delivery_schedule == 'daily' or not customer %}sel{% endif %}" onclick="selectSched('daily', this)">
                 <span class="s-icon">☀️</span><span class="s-name">Daily</span>
             </div>
-            <div class="sched-card {% if customer.delivery_schedule == 'alternate' %}sel{% endif %}" onclick="selectSched('alternate', this, 15)">
+            <div class="sched-card {% if customer.delivery_schedule == 'alternate' %}sel{% endif %}" onclick="selectSched('alternate', this)">
                 <span class="s-icon">🔀</span><span class="s-name">Alternate</span>
             </div>
-            <div class="sched-card {% if customer.delivery_schedule == 'weekdays' %}sel{% endif %}" onclick="selectSched('weekdays', this, 22)">
+            <div class="sched-card {% if customer.delivery_schedule == 'weekdays' %}sel{% endif %}" onclick="selectSched('weekdays', this)">
                 <span class="s-icon">💼</span><span class="s-name">Weekdays</span>
             </div>
-            <div class="sched-card {% if customer.delivery_schedule == 'weekends' %}sel{% endif %}" onclick="selectSched('weekends', this, 8)">
+            <div class="sched-card {% if customer.delivery_schedule == 'weekends' %}sel{% endif %}" onclick="selectSched('weekends', this)">
                 <span class="s-icon">🏖️</span><span class="s-name">Weekends</span>
             </div>
+        </div>
+
+        <div id="calendar-preview">
+            <div id="calendar-month-name" style="font-size: 12px; font-weight: 900; color: var(--primary); margin-bottom: 10px; text-transform: uppercase;"></div>
+            <div class="cal-header-row">
+                <div class="cal-header">S</div><div class="cal-header">M</div><div class="cal-header">T</div>
+                <div class="cal-header">W</div><div class="cal-header">T</div><div class="cal-header">F</div><div class="cal-header">S</div>
+            </div>
+            <div id="calendar-grid"></div>
         </div>
 
         <div class="estimate-card">
@@ -158,7 +166,7 @@
                 </div>
             </div>
             <div style="font-size: 11px; margin-top: 15px; opacity: 0.9; font-style: italic;">
-                * Calculated based on <span id="daysCount">30</span> delivery days per month.
+                * Calculated for <span id="daysCount">--</span> delivery days in the current month.
             </div>
         </div>
     </div>
@@ -175,108 +183,107 @@
 
 {% block extra_js %}
 <script>
-    let currentDays = 30; // Default for 'daily'
+    let currentSchedule = document.getElementById('scheduleInput').value || 'daily';
 
-    // 1. Add new product row
+    // 1. Manage Subscription Rows
     function addSubRow() {
         const container = document.getElementById('subList');
         const firstRow = container.querySelector('.sub-row');
         const newRow = firstRow.cloneNode(true);
-
-        // Reset values in the new row
-        newRow.querySelectorAll('input').forEach(input => {
-            if(input.name === 'sub_qty') input.value = "1.0";
-            else input.value = "";
-        });
-        
-        // Ensure the "Select Product" option is chosen if it exists
-        const select = newRow.querySelector('select');
-        select.selectedIndex = 0;
-
+        newRow.querySelectorAll('input').forEach(i => i.value = (i.name === 'sub_qty' ? "1.0" : ""));
+        newRow.querySelector('select').selectedIndex = 0;
         container.appendChild(newRow);
         attachTriggers();
         updateCalculation();
     }
 
-    // 2. Remove product row
     function removeSubRow(btn) {
-        const rows = document.querySelectorAll('.sub-row');
-        if (rows.length > 1) {
+        if (document.querySelectorAll('.sub-row').length > 1) {
             btn.closest('.sub-row').remove();
             updateCalculation();
-        } else {
-            alert("At least one product is required.");
         }
     }
 
-    // 3. Handle Schedule Selection
-    function selectSched(value, element, days) {
-        // Update hidden input
+    // 2. Schedule Logic & Calendar Render
+    function selectSched(value, element) {
+        currentSchedule = value;
         document.getElementById('scheduleInput').value = value;
-        
-        // Update UI styling
-        document.querySelectorAll('.sched-card').forEach(card => card.classList.remove('sel'));
+        document.querySelectorAll('.sched-card').forEach(c => c.classList.remove('sel'));
         element.classList.add('sel');
-        
-        // Update calculation variables
-        currentDays = days;
-        document.getElementById('daysCount').innerText = days;
+        renderCalendar();
         updateCalculation();
     }
 
-    // 4. Calculate Estimates
+    function renderCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        const monthLabel = document.getElementById('calendar-month-name');
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        monthLabel.innerText = `${monthNames[month]} ${year}`;
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        grid.innerHTML = '';
+        let dCount = 0;
+
+        for (let i = 0; i < firstDay; i++) grid.innerHTML += '<div></div>';
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, month, d);
+            const dayOfWeek = date.getDay();
+            let active = false;
+
+            if (currentSchedule === 'daily') active = true;
+            else if (currentSchedule === 'alternate') active = (d % 2 !== 0);
+            else if (currentSchedule === 'weekdays') active = (dayOfWeek >= 1 && dayOfWeek <= 5);
+            else if (currentSchedule === 'weekends') active = (dayOfWeek === 0 || dayOfWeek === 6);
+
+            if (active) dCount++;
+
+            grid.innerHTML += `
+                <div class="cal-day" style="${active ? 'background:var(--primary); color:white;' : 'background:#f1f5f9; color:#cbd5e1;'}">
+                    ${d}
+                </div>`;
+        }
+        document.getElementById('daysCount').innerText = dCount;
+        return dCount;
+    }
+
+    // 3. Billing Estimation
     function updateCalculation() {
         let dailyTotal = 0;
-        const rows = document.querySelectorAll('.sub-row');
-
-        rows.forEach(row => {
-            const productSelect = row.querySelector('select[name="sub_product"]');
-            const qtyInput = row.querySelector('input[name="sub_qty"]');
-            const priceInput = row.querySelector('input[name="sub_price"]');
-
-            const selectedOption = productSelect.options[productSelect.selectedIndex];
-            const defaultPrice = parseFloat(selectedOption.getAttribute('data-price')) || 0;
-            const customPrice = parseFloat(priceInput.value);
+        const totalDays = parseInt(document.getElementById('daysCount').innerText) || 0;
+        
+        document.querySelectorAll('.sub-row').forEach(row => {
+            const productSel = row.querySelector('select[name="sub_product"]');
+            const qty = parseFloat(row.querySelector('input[name="sub_qty"]').value) || 0;
+            const customPrice = parseFloat(row.querySelector('input[name="sub_price"]').value);
             
-            // Use custom price if entered, otherwise use default product price
-            const price = !isNaN(customPrice) && customPrice > 0 ? customPrice : defaultPrice;
-            const qty = parseFloat(qtyInput.value) || 0;
+            const defaultPrice = parseFloat(productSel.options[productSel.selectedIndex]?.dataset.price) || 0;
+            const price = customPrice > 0 ? customPrice : defaultPrice;
 
             dailyTotal += (price * qty);
         });
 
-        const monthlyTotal = dailyTotal * currentDays;
-
-        // Update UI
         document.getElementById('dayEst').innerText = `Rs. ${dailyTotal.toFixed(2)}`;
-        document.getElementById('monthEst').innerText = `Rs. ${monthlyTotal.toFixed(2)}`;
+        document.getElementById('monthEst').innerText = `Rs. ${(dailyTotal * totalDays).toFixed(2)}`;
     }
 
-    // 5. Attach Event Listeners
     function attachTriggers() {
         document.querySelectorAll('.sub-trigger').forEach(el => {
-            el.removeEventListener('input', updateCalculation);
             el.addEventListener('input', updateCalculation);
-            
-            el.removeEventListener('change', updateCalculation);
             el.addEventListener('change', updateCalculation);
         });
     }
 
-    // Initialize on page load
     document.addEventListener('DOMContentLoaded', () => {
-        attachTriggers();
-        // Set initial days based on existing selection
-        const activeSched = document.querySelector('.sched-card.sel');
-        if(activeSched) {
-            // Basic logic to determine initial days based on class/text if needed
-            const name = activeSched.querySelector('.s-name').innerText.toLowerCase();
-            if(name === 'alternate') currentDays = 15;
-            else if(name === 'weekdays') currentDays = 22;
-            else if(name === 'weekends') currentDays = 8;
-            else currentDays = 30;
-        }
+        renderCalendar();
         updateCalculation();
+        attachTriggers();
     });
 </script>
 {% endblock %}
