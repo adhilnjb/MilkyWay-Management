@@ -10,7 +10,7 @@
 
 {% block extra_css %}
 <style>
-    /* ── MOBILE SUMMARY SCROLL (New) ── */
+    /* ── MOBILE SUMMARY SCROLL ── */
     .mobile-summary-bar {
         display: none;
         gap: 10px;
@@ -35,7 +35,7 @@
     .dot { width: 8px; height: 8px; border-radius: 50%; }
 
     @media (max-width: 992px) {
-        .mobile-summary-bar { display: flex; } /* Show only on mobile/tablet */
+        .mobile-summary-bar { display: flex; }
     }
 
     /* ── DESKTOP COMMAND CENTER LAYOUT ── */
@@ -176,7 +176,7 @@
                             <div style="font-size: 11px; color: var(--primary);">📍 {{ c.get_area_display }}</div>
                         </td>
                         <td>
-                            <div style="font-weight: 800;">{{ c.default_qty }}L</div>
+                            <div style="font-weight: 800;">{{ c.default_qty|floatformat:"-2" }}L</div>
                             <div style="font-size: 10px; color: var(--muted);">{{ c.get_delivery_schedule_display }}</div>
                         </td>
                         <td>
@@ -213,11 +213,9 @@
                         <span style="font-size:13px; font-weight:700; display:block;">{{ c.phone }}</span>
                     </div>
                     <div style="text-align: right;">
-    <span style="font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase;">Subscription</span>
-    <span style="font-size:13px; font-weight:700; display:block;">
-        {{ c.default_qty|floatformat:"-2" }}L / {{ c.get_delivery_schedule_display }}
-    </span>
-</div>
+                        <span style="font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase;">Subscription</span>
+                        <span style="font-size:13px; font-weight:700; display:block;">{{ c.default_qty|floatformat:"-2" }}L / {{ c.get_delivery_schedule_display }}</span>
+                    </div>
                 </div>
                 <div class="m-actions">
                     <a href="{% url 'customer_detail' c.pk %}" class="m-btn">👁️</a>
