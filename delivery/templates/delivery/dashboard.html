@@ -149,29 +149,7 @@
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">⚠️ Pending Delivery</span>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <tbody>
-          {% for c in missed_customers|slice:":5" %}
-          <tr>
-            <td style="padding: 15px;">
-              <div style="font-weight:800; font-size:14px; color:var(--dark);">{{ c.name }}</div>
-              <div style="font-size:10px; color:var(--muted); font-weight:600;">{{ c.get_area_display }}</div>
-            </td>
-            <td style="text-align: right; padding-right: 15px;">
-                <button onclick="quickDeliver({{ c.id }}, '{{ today|date:'Y-m-d' }}')" class="btn btn-primary" style="padding: 6px 12px; font-size: 11px;" id="qbtn-{{ c.id }}">✓ Done</button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+  
 
 <div class="card" style="border-radius: var(--radius); overflow: hidden; margin-bottom: 24px;">
     <div class="card-header" style="padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; background: transparent; border-bottom: 1px solid #f1f5f9;">
