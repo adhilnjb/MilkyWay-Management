@@ -213,9 +213,11 @@
                         <span style="font-size:13px; font-weight:700; display:block;">{{ c.phone }}</span>
                     </div>
                     <div style="text-align: right;">
-                        <span style="font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase;">Plan</span>
-                        <span style="font-size:13px; font-weight:700; display:block;">{{ c.default_qty }}L / {{ c.get_delivery_schedule_display }}</span>
-                    </div>
+    <span style="font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase;">Subscription</span>
+    <span style="font-size:13px; font-weight:700; display:block;">
+        {{ c.default_qty|floatformat:"-2" }}L / {{ c.get_delivery_schedule_display }}
+    </span>
+</div>
                 </div>
                 <div class="m-actions">
                     <a href="{% url 'customer_detail' c.pk %}" class="m-btn">👁️</a>
