@@ -176,15 +176,21 @@
                             <div style="font-size: 11px; color: var(--primary);">📍 {{ c.get_area_display }}</div>
                         </td>
                         <td>
-                            <div style="font-weight: 800;">{{ c.default_qty|floatformat:"-2" }}L</div>
-                            <div style="font-size: 10px; color: var(--muted);">{{ c.get_delivery_schedule_display }}</div>
+                            {% for sub in c.subscriptions.all %}
+                                <div style="font-weight: 800; color: var(--dark);">
+                                    {{ sub.quantity|floatformat:"-2" }}L {{ sub.product.name }}
+                                </div>
+                            {% empty %}
+                                <div style="font-size: 11px; color: var(--danger);">No active plan</div>
+                            {% endfor %}
+                            <div style="font-size: 10px; color: var(--muted); text-transform: uppercase;">
+                                {{ c.get_delivery_schedule_display }}
+                            </div>
                         </td>
                         <td>
-                            {% if c.status == 'active' %}
-                                <span class="badge" style="background: #d1fae5; color: #065f46;">Active</span>
-                            {% else %}
-                                <span class="badge" style="background: #fee2e2; color: #991b1b;">{{ c.status|upper }}</span>
-                            {% endif %}
+                            <span class="badge" style="background: {% if c.status == 'active' %}#d1fae5; color: #065f46;{% else %}#fee2e2; color: #991b1b;{% endif %}">
+                                {{ c.status|upper }}
+                            </span>
                         </td>
                         <td style="text-align: right;">
                             <div style="display: flex; gap: 6px; justify-content: flex-end;">
@@ -204,8 +210,8 @@
             <div class="mobile-cust-card" data-search="{{ c.name|lower }} {{ c.phone }} {{ c.customer_id|lower }}">
                 <div class="m-header">
                     <div class="avatar-ui" style="width:35px; height:35px; font-size:12px;">{{ c.name|first|upper }}</div>
-                    <div class="m-name">{{ c.name }}</div>
-                    {% if c.status == 'active' %}✅{% else %}⚠️{% endif %}
+                    <div class="m-name" style="font-weight: 800;">{{ c.name }}</div>
+                    <div style="margin-left: auto;">{% if c.status == 'active' %}🟢{% else %}🔴{% endif %}</div>
                 </div>
                 <div class="m-body">
                     <div>
@@ -213,8 +219,15 @@
                         <span style="font-size:13px; font-weight:700; display:block;">{{ c.phone }}</span>
                     </div>
                     <div style="text-align: right;">
-                        <span style="font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase;">Subscription</span>
-                        <span style="font-size:13px; font-weight:700; display:block;">{{ c.default_qty|floatformat:"-2" }}L / {{ c.get_delivery_schedule_display }}</span>
+                        <span style="font-size:10px; color:var(--muted); font-weight:700; text-transform:uppercase;">Plan Details</span>
+                        {% for sub in c.subscriptions.all %}
+                            <span style="font-size:13px; font-weight:800; display:block; color: var(--primary);">
+                                {{ sub.quantity|floatformat:"-2" }}L {{ sub.product.name }}
+                            </span>
+                        {% empty %}
+                            <span style="font-size:11px; color:var(--danger); display:block;">No Plan</span>
+                        {% endfor %}
+                        <span style="font-size: 10px; color: var(--muted);">{{ c.get_delivery_schedule_display }}</span>
                     </div>
                 </div>
                 <div class="m-actions">
