@@ -23,7 +23,7 @@ class MilkProduct(models.Model):
 class Customer(models.Model):
     AREA_CHOICES = [
         ('north','North Venduvazhy'),('south','South Venduvazhy'),
-        ('Substation','Substation'),('Madathipady','Madathipady'),('Elavanad','Elavanad'),('314','314'),('Onnam Mile','Onnam Mile')
+        ('Substation','Substation'),('Vilayal','Vilayal'),('Madathipady','Madathipady'),('Elavanad','Elavanad'),('314','314'),('Onnam Mile','Onnam Mile')
     ]
     STATUS_CHOICES   = [('active','Active'),('inactive','Inactive'),('paused','Paused')]
     SCHEDULE_CHOICES = [
