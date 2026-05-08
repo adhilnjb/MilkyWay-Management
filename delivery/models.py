@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from decimal import Decimal
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 import datetime
 
 
@@ -9,7 +9,7 @@ class MilkProduct(models.Model):
     UNIT_CHOICES = [('L','Litre'),('mL','Millilitre'),('kg','Kilogram'),('g','Gram')]
     name          = models.CharField(max_length=100)
     unit          = models.CharField(max_length=5, choices=UNIT_CHOICES, default='L')
-    default_price = models.DecimalField(max_digits=8, decimal_places=2)
+    default_price = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0.01')), MaxValueValidator(Decimal('999999.99'))])
     description   = models.TextField(blank=True)
     is_active     = models.BooleanField(default=True)
     created_at    = models.DateTimeField(auto_now_add=True)
