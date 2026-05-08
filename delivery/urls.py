@@ -21,6 +21,8 @@ urlpatterns = [
     path('delivery/list/',        views.delivery_list,        name='delivery_list'),
     path('delivery/bulk-update/', views.delivery_bulk_update, name='delivery_bulk_update'),
     path('delivery/quick-add/',   views.delivery_quick_add,   name='delivery_quick_add'),
+    path('delivery/trip/',         views.trip_delivery_entry, name='trip_delivery_entry'),
+    path('delivery/trip/summary/', views.trip_summary,        name='trip_summary'),
 
     # Bills
     path('bills/',                       views.bill_list,      name='bill_list'),

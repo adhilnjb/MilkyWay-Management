@@ -145,8 +145,12 @@ class CustomerSubscription(models.Model):
 class DailyDelivery(models.Model):
     customer       = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='deliveries')
     product        = models.ForeignKey(MilkProduct, on_delete=models.SET_NULL, null=True)
+    route          = models.ForeignKey('DeliveryRoute', on_delete=models.SET_NULL,   # ← NEW
+                                        null=True, blank=True, related_name='deliveries')
     date           = models.DateField(default=datetime.date.today)
-    quantity       = models.DecimalField(max_digits=6, decimal_places=2)
+    quantity       = models.DecimalField(max_digits=6, decimal_places=2,
+                        validators=[MinValueValidator(Decimal('0.01')),
+                                    MaxValueValidator(Decimal('9999.99'))])
     price_per_unit = models.DecimalField(max_digits=8, decimal_places=2)
     amount         = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0'))
     is_delivered   = models.BooleanField(default=True)
@@ -156,16 +160,22 @@ class DailyDelivery(models.Model):
     created_at     = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-date', 'customer__name']
+        ordering = ['-date', 'route__name', 'customer__name']
         unique_together = ['customer', 'date', 'product']
 
     def __str__(self):
         return f"{self.customer.name} - {self.date} - {self.quantity}L"
 
     def save(self, *args, **kwargs):
+        # Auto-assign route from customer's DeliveryRoute if not set
+        if not self.route_id:
+            route = DeliveryRoute.objects.filter(
+                customers=self.customer, is_active=True
+            ).first()
+            if route:
+                self.route = route
         self.amount = (self.quantity * self.price_per_unit) if self.is_delivered else Decimal('0')
         super().save(*args, **kwargs)
-
 
 class Bill(models.Model):
     STATUS_CHOICES = [('unpaid','Unpaid'),('partial','Partial'),('paid','Paid')]
