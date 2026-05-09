@@ -9,43 +9,71 @@
 
 {% block extra_css %}
 <style>
-/* ── RESPONSIVE OVERRIDES ── */
+/* ── DYNAMIC THEME SYSTEM ── */
+:root {
+    --card-bg: #ffffff;
+    --body-bg: #f8fafc;
+    --border: #f1f5f9;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --bg-alt: #f8fafc;
+    --calc-box-bg: #eff6ff;
+    --calc-box-border: #bfdbfe;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --card-bg: #1e1e2d;
+        --body-bg: #151521;
+        --border: #2b2b40;
+        --text-main: #ffffff;
+        --text-muted: #a0a0c0;
+        --bg-alt: #252538;
+        --calc-box-bg: rgba(59, 130, 246, 0.1);
+        --calc-box-border: #3b82f6;
+    }
+}
+
+/* ── LAYOUT & RESPONSIVENESS ── */
 .edit-container {
     max-width: 540px;
     margin: 0 auto;
+    padding: 10px;
+}
+
+.form-control {
+    background: var(--bg-alt) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border) !important;
+    padding: 12px;
+    border-radius: 8px;
+    width: 100%;
 }
 
 @media (max-width: 600px) {
-    .edit-container {
-        max-width: 100%;
-    }
+    .edit-container { max-width: 100%; }
     .summary-grid {
-        grid-template-columns: 1fr !important; /* Stack stats on small phones */
-        gap: 12px !important;
+        grid-template-columns: 1fr !important; 
+        gap: 8px !important;
     }
-    .btn-group-mobile {
-        flex-direction: column;
-    }
-    .btn-group-mobile .btn {
-        width: 100%;
-        justify-content: center;
-    }
+    .btn-group-mobile { flex-direction: column; }
+    .btn-group-mobile .btn { width: 100%; justify-content: center; height: 50px; }
 }
 
-/* Form Polish */
+/* Form Styling */
 .form-group label {
     font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
-    color: var(--muted);
+    color: var(--text-muted);
     letter-spacing: 0.5px;
     margin-bottom: 8px;
     display: block;
 }
 
 .calc-box {
-    background: var(--primary-pale);
-    border: 1.5px solid #bfdbfe;
+    background: var(--calc-box-bg);
+    border: 1.5px solid var(--calc-box-border);
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 20px;
@@ -55,15 +83,18 @@
 
 {% block content %}
 <div class="edit-container">
-<div class="card">
-  <div class="card-header"><span class="card-title">✏️ Adjust Bill Calculations</span></div>
-  <div class="card-body">
+<div class="card" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px;">
+  <div class="card-header" style="border-bottom: 1px solid var(--border); padding: 18px 22px;">
+    <span class="card-title" style="color: var(--text-main); font-weight: 800;">✏️ Adjust Bill Calculations</span>
+  </div>
+  <div class="card-body" style="padding: 20px;">
 
-    <div style="background: #f1f5f9; border-radius:12px; padding:16px; margin-bottom:24px; border:1px solid var(--border);">
+    <!-- Context Summary -->
+    <div style="background: var(--bg-alt); border-radius:12px; padding:16px; margin-bottom:24px; border:1px solid var(--border);">
       <div class="summary-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; font-size:13px;">
-        <div><span style="color:var(--muted); font-weight:600;">Total Qty:</span> <strong class="font-mono">{{ bill.total_quantity }}L</strong></div>
-        <div><span style="color:var(--muted); font-weight:600;">Monthly Total:</span> <strong class="font-mono">Rs. {{ bill.total_amount }}</strong></div>
-        <div><span style="color:var(--muted); font-weight:600;">Prev Balance:</span> <strong class="font-mono">Rs. {{ bill.previous_balance }}</strong></div>
+        <div><span style="color:var(--text-muted); font-weight:600;">Total Qty:</span> <strong class="font-mono" style="color: var(--text-main);">{{ bill.total_quantity }}L</strong></div>
+        <div><span style="color:var(--text-muted); font-weight:600;">Monthly Total:</span> <strong class="font-mono" style="color: var(--text-main);">Rs. {{ bill.total_amount }}</strong></div>
+        <div><span style="color:var(--text-muted); font-weight:600;">Prev Balance:</span> <strong class="font-mono" style="color: var(--text-main);">Rs. {{ bill.previous_balance }}</strong></div>
       </div>
     </div>
 
@@ -74,15 +105,17 @@
         <label>Discount Amount (Rs.)</label>
         <input type="number" name="discount" class="form-control" step="0.01" min="0"
                value="{{ bill.discount }}" id="discountInp" oninput="recalc()" 
-               inputmode="decimal"> <p style="font-size:11px; color:var(--muted); margin-top:6px;">This amount is subtracted from the monthly total.</p>
+               inputmode="decimal"> 
+        <p style="font-size:11px; color:var(--text-muted); margin-top:6px;">Subtracted from the monthly total.</p>
       </div>
 
+      <!-- Result Box -->
       <div class="calc-box">
-        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px; color:#475569;">
-          <span>Net Amount (Current):</span>
-          <strong id="netAmtPreview" class="font-mono">Rs. {{ bill.net_amount }}</strong>
+        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px; color: var(--text-muted);">
+          <span>Net Amount:</span>
+          <strong id="netAmtPreview" class="font-mono" style="color: var(--text-main);">Rs. {{ bill.net_amount }}</strong>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:15px; font-weight:900; color:var(--primary); padding-top:8px; border-top:1px dashed #bfdbfe;">
+        <div style="display:flex; justify-content:space-between; font-size:16px; font-weight:900; color:var(--primary); padding-top:10px; border-top:1px dashed var(--calc-box-border);">
           <span>Grand Total:</span>
           <strong id="grandPreview" class="font-mono">Rs. {{ bill.grand_total }}</strong>
         </div>
@@ -104,8 +137,8 @@
       </div>
 
       <div class="btn-group-mobile" style="display:flex; gap:10px;">
-        <button type="submit" class="btn btn-primary btn-lg" style="flex:2; justify-content:center;">💾 Update Bill</button>
-        <a href="{% url 'bill_detail' bill.pk %}" class="btn btn-secondary btn-lg" style="flex:1; justify-content:center;">Cancel</a>
+        <button type="submit" class="btn btn-primary" style="flex:2; font-weight: 800; border-radius: 10px;">💾 Update Bill</button>
+        <a href="{% url 'bill_detail' bill.pk %}" class="btn btn-secondary" style="flex:1; border-radius: 10px; background: var(--bg-alt); color: var(--text-main); border: 1px solid var(--border);">Cancel</a>
       </div>
     </form>
   </div>
@@ -115,9 +148,8 @@
 
 {% block extra_js %}
 <script>
-// Logic stays consistent with your model math
-const subTotal   = parseFloat("{{ bill.total_amount }}") || 0;
-const prevBal    = parseFloat("{{ bill.previous_balance }}") || 0;
+const subTotal = parseFloat("{{ bill.total_amount }}") || 0;
+const prevBal = parseFloat("{{ bill.previous_balance }}") || 0;
 
 function recalc() {
     const discInp = document.getElementById('discountInp');
@@ -126,12 +158,10 @@ function recalc() {
     const net = Math.max(0, subTotal - disc);
     const grand = net + prevBal;
     
-    // Smoothly update the Rs. values
     document.getElementById('netAmtPreview').textContent = 'Rs. ' + net.toFixed(2);
     document.getElementById('grandPreview').textContent = 'Rs. ' + grand.toFixed(2);
 }
 
-// Run once on load to ensure sync
 window.onload = recalc;
 </script>
 {% endblock %}

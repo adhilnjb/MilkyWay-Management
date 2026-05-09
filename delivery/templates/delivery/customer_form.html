@@ -1,50 +1,112 @@
 {% extends 'delivery/base.html' %}
-{% block title %}{{ action }} Customer – Milky Way{% endblock %}
+{% block title %}{{ action }} Customer – Milky Way Pro{% endblock %}
 {% block page_title %}{{ action }} Customer{% endblock %}
+{% block page_sub %}Configure profile, delivery schedule, and billing{% endblock %}
 
 {% block topbar_actions %}
-<a href="{% url 'customer_list' %}" class="btn btn-secondary btn-sm">← Back</a>
+<a href="{% url 'customer_list' %}" class="btn btn-secondary">← Back to List</a>
 {% endblock %}
 
 {% block extra_css %}
 <style>
     .form-container { max-width: 900px; margin: 0 auto; padding-bottom: 50px; }
-    .sec { background: white; border: 1px solid var(--border); border-radius: 20px; padding: 24px; margin-bottom: 24px; box-shadow: var(--shadow); }
-    .sec-title { font-size: 14px; font-weight: 800; color: var(--dark); margin-bottom: 20px; display: flex; align-items: center; gap: 10px; text-transform: uppercase; }
-
-    /* Form Grid */
-    .form-row-custom { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; margin-bottom: 15px; }
-
-    /* Subscriptions */
-    .sub-row { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 20px; border-radius: 16px; background: #f8fafc; border: 1px solid var(--border); margin-bottom: 15px; position: relative; }
-    @media (min-width: 768px) { .sub-row { grid-template-columns: 2fr 1fr 1fr auto; align-items: end; gap: 15px; padding: 15px; } }
-
-    .del-sub-btn { width: 35px; height: 35px; border-radius: 10px; border: none; background: #fee2e2; color: var(--danger); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-    .add-sub-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 14px; border: 2px dashed #cbd5e1; border-radius: 12px; color: var(--muted); background: transparent; font-weight: 700; cursor: pointer; }
-
-    /* Schedule Selector */
-    .sched-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
-    .sched-card { border: 2px solid #f1f5f9; border-radius: 15px; padding: 15px; text-align: center; cursor: pointer; transition: 0.2s; background: white; }
-    .sched-card.sel { border-color: var(--primary); background: var(--primary-pale); transform: translateY(-2px); box-shadow: var(--shadow); }
-    .sched-card .s-icon { font-size: 20px; margin-bottom: 5px; display: block; }
-    .sched-card .s-name { font-size: 12px; font-weight: 800; color: var(--dark); }
-
-    /* Calendar Preview */
-    #calendar-preview { margin-top: 20px; border-top: 1px solid var(--border); pt: 20px; }
-    .cal-header-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 8px; }
-    .cal-header { font-size: 10px; font-weight: 900; color: var(--muted); text-align: center; }
-    #calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-    .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border-radius: 8px; transition: 0.3s; }
-
-    /* Responsive Estimate Box */
-    .estimate-card { 
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%); 
-        color: white; border-radius: 18px; padding: 25px; margin-top: 20px;
-        box-shadow: 0 10px 25px -5px rgba(13, 115, 119, 0.3);
+    
+    /* ── SECTION CARDS ── */
+    .sec { 
+        background: var(--card); 
+        border: 1px solid var(--border); 
+        border-radius: var(--radius); 
+        padding: 24px; 
+        margin-bottom: 24px; 
+        box-shadow: var(--shadow); 
+        transition: background 0.3s;
     }
-    .est-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid rgba(255,255,255,0.2); margin-top: 15px; padding-top: 15px; }
-    .est-label { font-size: 10px; font-weight: 700; text-transform: uppercase; opacity: 0.8; }
-    .est-val { font-size: 20px; font-weight: 900; }
+    .sec-title { 
+        font-size: 12px; 
+        font-weight: 800; 
+        color: var(--primary-light); 
+        margin-bottom: 20px; 
+        display: flex; 
+        align-items: center; 
+        gap: 10px; 
+        text-transform: uppercase; 
+        letter-spacing: 1px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--muted);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+
+    /* ── FORM GRID ── */
+    .form-row-custom { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-bottom: 18px; }
+
+    /* ── SUBSCRIPTIONS ── */
+    .sub-row { 
+        display: grid; 
+        grid-template-columns: 1fr; 
+        gap: 12px; 
+        padding: 16px; 
+        border-radius: 12px; 
+        background: var(--table-head-bg); 
+        border: 1px solid var(--border); 
+        margin-bottom: 12px; 
+        position: relative; 
+    }
+    @media (min-width: 768px) { .sub-row { grid-template-columns: 2fr 1fr 1fr auto; align-items: end; gap: 15px; } }
+
+    .del-sub-btn { 
+        width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--danger-light); 
+        background: var(--danger-light); color: var(--danger); cursor: pointer; 
+        display: flex; align-items: center; justify-content: center; font-size: 14px;
+        transition: 0.2s;
+    }
+    .del-sub-btn:hover { background: var(--danger); color: white; }
+
+    .add-sub-btn { 
+        display: flex; align-items: center; justify-content: center; gap: 8px; 
+        width: 100%; padding: 12px; border: 2px dashed var(--border); border-radius: 12px; 
+        color: var(--muted); background: transparent; font-size: 13px; font-weight: 700; cursor: pointer; 
+        transition: 0.2s;
+    }
+    .add-sub-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-pale); }
+
+    /* ── SCHEDULE SELECTOR ── */
+    .sched-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+    .sched-card { 
+        border: 1px solid var(--border); border-radius: 12px; padding: 16px; 
+        text-align: center; cursor: pointer; transition: 0.3s; background: var(--card); 
+    }
+    .sched-card.sel { 
+        border-color: var(--primary); background: var(--primary-pale); 
+        transform: translateY(-3px); box-shadow: var(--shadow); 
+    }
+    .sched-card .s-icon { font-size: 22px; margin-bottom: 6px; display: block; }
+    .sched-card .s-name { font-size: 12px; font-weight: 800; color: var(--text); }
+
+    /* ── CALENDAR PREVIEW ── */
+    #calendar-preview { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+    .cal-header-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 10px; }
+    .cal-header { font-size: 10px; font-weight: 900; color: var(--muted); text-align: center; }
+    #calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .cal-day { 
+        aspect-ratio: 1; display: flex; align-items: center; justify-content: center; 
+        font-size: 11px; font-weight: 700; border-radius: 8px; transition: 0.3s; 
+    }
+
+    /* ── ESTIMATE BOX ── */
+    .estimate-card { 
+        background: linear-gradient(135deg, var(--primary) 0%, #085a5e 100%); 
+        color: white; border-radius: 16px; padding: 22px; margin-top: 24px;
+        box-shadow: 0 10px 20px -5px rgba(13, 115, 119, 0.4);
+    }
+    .est-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; border-top: 1px solid rgba(255,255,255,0.15); margin-top: 15px; padding-top: 15px; }
+    .est-label { font-size: 10px; font-weight: 700; text-transform: uppercase; opacity: 0.8; letter-spacing: 0.5px; }
+    .est-val { font-size: 22px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
 </style>
 {% endblock %}
 
@@ -53,78 +115,122 @@
 <form method="post" id="mainForm">
     {% csrf_token %}
 
+    <!-- 1. Profile Section -->
     <div class="sec">
         <div class="sec-title">
             <span>👤 Basic Profile</span>
             {% if customer %}
-                <span class="badge {% if customer.status == 'active' %}badge-success{% else %}badge-danger{% endif %}" style="margin-left: auto; text-transform: uppercase;">
+                <span class="badge {% if customer.status == 'active' %}badge-success{% else %}badge-danger{% endif %}" style="margin-left: auto;">
                     {{ customer.status }}
                 </span>
             {% endif %}
         </div>
         <div class="form-row-custom">
-            <div class="form-group"><label>Full Name *</label><input type="text" name="name" class="form-control" value="{{ customer.name|default:'' }}" required></div>
-            <div class="form-group"><label>Mobile Phone *</label><input type="tel" name="phone" class="form-control" value="{{ customer.phone|default:'' }}" required></div>
+            <div class="form-group">
+                <label>Full Name *</label>
+                <input type="text" name="name" class="form-control" value="{{ customer.name|default:'' }}" required placeholder="e.g. Rahul Sharma">
+            </div>
+            <div class="form-group">
+                <label>Mobile Phone *</label>
+                <input type="tel" name="phone" class="form-control font-mono" value="{{ customer.phone|default:'' }}" required placeholder="10-digit mobile">
+            </div>
         </div>
         <div class="form-row-custom">
             <div class="form-group">
                 <label>Account Status</label>
-                <select name="status" class="form-control status-select" id="id_status">
+                <select name="status" class="form-control">
                     {% for v, l in status_choices %}
                         <option value="{{ v }}" {% if customer.status == v %}selected{% elif not customer and v == 'active' %}selected{% endif %}>{{ l }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="form-group"><label>Joining Date</label><input type="date" name="joining_date" class="form-control" value="{{ customer.joining_date|date:'Y-m-d'|default:'' }}"></div>
+            <div class="form-group">
+                <label>Joining Date</label>
+                <input type="date" name="joining_date" class="form-control" value="{{ customer.joining_date|date:'Y-m-d'|default:'' }}">
+            </div>
         </div>
     </div>
 
+    <!-- 2. Delivery Section -->
     <div class="sec">
         <div class="sec-title">📍 Delivery Details</div>
-        <div class="form-group" style="margin-bottom:15px;"><label>Full Address *</label><textarea name="address" class="form-control" rows="2" required>{{ customer.address|default:'' }}</textarea></div>
+        <div class="form-group" style="margin-bottom:18px;">
+            <label>Full Delivery Address *</label>
+            <textarea name="address" class="form-control" rows="2" required placeholder="House No, Street, Landmark...">{{ customer.address|default:'' }}</textarea>
+        </div>
         <div class="form-row-custom">
-            <div class="form-group"><label>Zone Area *</label>
+            <div class="form-group">
+                <label>Zone Area *</label>
                 <select name="area" class="form-control">
-                    {% for v,l in area_choices %}<option value="{{ v }}" {% if customer.area == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+                    {% for v,l in area_choices %}
+                        <option value="{{ v }}" {% if customer.area == v %}selected{% endif %}>{{ l }}</option>
+                    {% endfor %}
                 </select>
             </div>
-            <div class="form-group"><label>Delivery Time</label><input type="time" name="delivery_time" class="form-control" value="{{ customer.delivery_time|time:'H:i'|default:'06:00' }}"></div>
+            <div class="form-group">
+                <label>Preferred Delivery Time</label>
+                <input type="time" name="delivery_time" class="form-control" value="{{ customer.delivery_time|time:'H:i'|default:'06:00' }}">
+            </div>
         </div>
     </div>
 
+    <!-- 3. Subscriptions Section -->
     <div class="sec">
         <div class="sec-title">🥛 Product Subscriptions</div>
         <div id="subList">
             {% if existing_subs %}
                 {% for sub in existing_subs %}
                 <div class="sub-row">
-                    <div class="form-group"><label>Product</label>
+                    <div class="form-group">
+                        <label>Product</label>
                         <select name="sub_product" class="form-control sub-trigger">
-                            {% for p in products %}<option value="{{ p.id }}" data-price="{{ p.default_price }}" {% if sub.product.id == p.id %}selected{% endif %}>{{ p.name }} (Rs.{{ p.default_price }})</option>{% endfor %}
+                            {% for p in products %}
+                                <option value="{{ p.id }}" data-price="{{ p.default_price }}" {% if sub.product.id == p.id %}selected{% endif %}>
+                                    {{ p.name }} (₹{{ p.default_price }})
+                                </option>
+                            {% endfor %}
                         </select>
                     </div>
-                    <div class="form-group"><label>Qty</label><input type="number" name="sub_qty" class="form-control font-mono sub-trigger" step="0.25" value="{{ sub.quantity }}"></div>
-                    <div class="form-group"><label>Rate (Opt)</label><input type="number" name="sub_price" class="form-control font-mono sub-trigger" step="0.01" value="{{ sub.custom_price|default:'' }}" placeholder="Default"></div>
+                    <div class="form-group">
+                        <label>Qty</label>
+                        <input type="number" name="sub_qty" class="form-control font-mono sub-trigger" step="0.1" value="{{ sub.quantity }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Rate (Opt)</label>
+                        <input type="number" name="sub_price" class="form-control font-mono sub-trigger" step="0.01" value="{{ sub.custom_price|default:'' }}" placeholder="Default">
+                    </div>
                     <button type="button" class="del-sub-btn" onclick="removeSubRow(this)">✕</button>
                 </div>
                 {% endfor %}
             {% else %}
                 <div class="sub-row">
-                    <div class="form-group"><label>Product</label>
+                    <div class="form-group">
+                        <label>Product</label>
                         <select name="sub_product" class="form-control sub-trigger">
                             <option value="">Select Product</option>
-                            {% for p in products %}<option value="{{ p.id }}" data-price="{{ p.default_price }}">{{ p.name }} (Rs.{{ p.default_price }})</option>{% endfor %}
+                            {% for p in products %}
+                                <option value="{{ p.id }}" data-price="{{ p.default_price }}">{{ p.name }} (₹{{ p.default_price }})</option>
+                            {% endfor %}
                         </select>
                     </div>
-                    <div class="form-group"><label>Qty</label><input type="number" name="sub_qty" class="form-control font-mono sub-trigger" step="0.25" value="1.0"></div>
-                    <div class="form-group"><label>Rate (Opt)</label><input type="number" name="sub_price" class="form-control font-mono sub-trigger" step="0.01" placeholder="Default"></div>
+                    <div class="form-group">
+                        <label>Qty</label>
+                        <input type="number" name="sub_qty" class="form-control font-mono sub-trigger" step="0.1" value="1.0">
+                    </div>
+                    <div class="form-group">
+                        <label>Rate (Opt)</label>
+                        <input type="number" name="sub_price" class="form-control font-mono sub-trigger" step="0.01" placeholder="Default">
+                    </div>
                     <button type="button" class="del-sub-btn" onclick="removeSubRow(this)">✕</button>
                 </div>
             {% endif %}
         </div>
-        <button type="button" class="add-sub-btn" onclick="addSubRow()">+ Add Product</button>
+        <button type="button" class="add-sub-btn" onclick="addSubRow()">
+            <span>➕</span> Add Another Product
+        </button>
     </div>
 
+    <!-- 4. Schedule Section -->
     <div class="sec">
         <div class="sec-title">📅 Delivery Cycle & Estimation</div>
         <input type="hidden" name="delivery_schedule" id="scheduleInput" value="{{ customer.delivery_schedule|default:'daily' }}">
@@ -145,37 +251,38 @@
         </div>
 
         <div id="calendar-preview">
-            <div id="calendar-month-name" style="font-size: 12px; font-weight: 900; color: var(--primary); margin-bottom: 10px; text-transform: uppercase;"></div>
+            <div id="calendar-month-name" style="font-size: 11px; font-weight: 800; color: var(--primary-light); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;"></div>
             <div class="cal-header-row">
-                <div class="cal-header">S</div><div class="cal-header">M</div><div class="cal-header">T</div>
-                <div class="cal-header">W</div><div class="cal-header">T</div><div class="cal-header">F</div><div class="cal-header">S</div>
+                <div class="cal-header">SUN</div><div class="cal-header">MON</div><div class="cal-header">TUE</div>
+                <div class="cal-header">WED</div><div class="cal-header">THU</div><div class="cal-header">FRI</div><div class="cal-header">SAT</div>
             </div>
             <div id="calendar-grid"></div>
         </div>
 
         <div class="estimate-card">
-            <div style="font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Smart Billing Estimate</div>
+            <div style="font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9;">Smart Billing Estimate</div>
             <div class="est-grid">
                 <div>
-                    <div class="est-label">Per Delivery Day</div>
-                    <div class="est-val" id="dayEst">Rs. 0.00</div>
+                    <div class="est-label">Per Delivery</div>
+                    <div class="est-val" id="dayEst">₹0.00</div>
                 </div>
-                <div>
-                    <div class="est-label">Estimated Monthly</div>
-                    <div class="est-val" id="monthEst">Rs. 0.00</div>
+                <div style="text-align: right;">
+                    <div class="est-label">Monthly Total</div>
+                    <div class="est-val" id="monthEst">₹0.00</div>
                 </div>
             </div>
-            <div style="font-size: 11px; margin-top: 15px; opacity: 0.9; font-style: italic;">
-                * Calculated for <span id="daysCount">--</span> delivery days in the current month.
+            <div style="font-size: 11px; margin-top: 15px; opacity: 0.8; font-style: italic;">
+                * Projection for <span id="daysCount">--</span> active delivery days this month.
             </div>
         </div>
     </div>
 
-    <div style="display:flex; gap:12px;">
-        <button type="submit" class="btn btn-primary btn-lg" style="flex:2; justify-content:center;">
-            {% if action == 'Add' %}➕ Create Profile{% else %}💾 Update Profile{% endif %}
+    <!-- Actions -->
+    <div style="display:flex; gap:12px; margin-top: 30px;">
+        <button type="submit" class="btn btn-primary" style="flex:2; height: 50px; font-size: 15px; justify-content: center;">
+            {% if action == 'Add' %}➕ Create Profile{% else %}💾 Save Changes{% endif %}
         </button>
-        <a href="{% url 'customer_list' %}" class="btn btn-secondary btn-lg" style="flex:1; justify-content:center;">Cancel</a>
+        <a href="{% url 'customer_list' %}" class="btn btn-secondary" style="flex:1; height: 50px; font-size: 15px; justify-content: center;">Cancel</a>
     </div>
 </form>
 </div>
@@ -245,7 +352,7 @@
             if (active) dCount++;
 
             grid.innerHTML += `
-                <div class="cal-day" style="${active ? 'background:var(--primary); color:white;' : 'background:#f1f5f9; color:#cbd5e1;'}">
+                <div class="cal-day" style="${active ? 'background:var(--primary); color:white;' : 'background:var(--table-head-bg); color:var(--muted); opacity: 0.4;'}">
                     ${d}
                 </div>`;
         }
@@ -269,8 +376,8 @@
             dailyTotal += (price * qty);
         });
 
-        document.getElementById('dayEst').innerText = `Rs. ${dailyTotal.toFixed(2)}`;
-        document.getElementById('monthEst').innerText = `Rs. ${(dailyTotal * totalDays).toFixed(2)}`;
+        document.getElementById('dayEst').innerText = `₹${dailyTotal.toFixed(2)}`;
+        document.getElementById('monthEst').innerText = `₹${(dailyTotal * totalDays).toFixed(2)}`;
     }
 
     function attachTriggers() {

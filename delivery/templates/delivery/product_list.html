@@ -1,110 +1,177 @@
 {% extends 'delivery/base.html' %}
-{% block title %}Products – MilkDairy Pro{% endblock %}
-{% block page_title %}Products & Prices{% endblock %}
-{% block page_sub %}Manage your milk variants and rates{% endblock %}
+{% block title %}Products – Milkyway Pro{% endblock %}
+{% block page_title %}Inventory & Rates{% endblock %}
+{% block page_sub %}Manage your milk variants and pricing tiers{% endblock %}
 
 {% block topbar_actions %}
-<a href="{% url 'product_add' %}" class="btn btn-primary">➕ Add Product</a>
+<a href="{% url 'product_add' %}" class="btn btn-primary">➕ Add New Variant</a>
 {% endblock %}
 
 {% block extra_css %}
 <style>
-/* ── RESPONSIVE PRODUCT CARDS ── */
-.product-grid {
-    display: none; /* Hidden on desktop */
-    grid-template-columns: 1fr;
-    gap: 15px;
-}
-
-@media (max-width: 768px) {
-    .desktop-table { display: none; } /* Hide table on mobile */
-    .product-grid { display: grid; }  /* Show cards on mobile */
-    
-    .product-mobile-card {
-        background: white;
-        border-radius: 15px;
+    /* ── STAT CARDS ── */
+    .product-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .stat-mini {
+        background: var(--card);
         padding: 20px;
+        border-radius: var(--radius);
         border: 1px solid var(--border);
-        box-shadow: var(--shadow);
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
+    }
+    .stat-mini label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .stat-mini span { font-size: 24px; font-weight: 900; color: var(--text); }
+
+    /* ── RESPONSIVE PRODUCT CARDS ── */
+    .product-grid {
+        display: none;
+        grid-template-columns: 1fr;
+        gap: 15px;
     }
 
-    .prod-info h3 { font-size: 16px; font-weight: 800; color: var(--dark); margin-bottom: 4px; }
-    .prod-info .unit-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
-    
-    .prod-price { text-align: right; }
-    .price-val { font-size: 18px; font-weight: 900; color: var(--primary); display: block; }
-}
+    @media (max-width: 992px) {
+        .desktop-table { display: none; }
+        .product-grid { display: grid; }
+        
+        .product-mobile-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
 
-/* ── TABLE STYLING ── */
-.desktop-table table { width: 100%; border-collapse: collapse; }
-.desktop-table th { background: #f8fafc; padding: 12px 15px; text-align: left; font-size: 11px; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid var(--border); }
-.desktop-table td { padding: 15px; border-bottom: 1px solid #f1f5f9; }
+        .product-mobile-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 5px;
+            background: var(--primary);
+        }
+
+        .prod-info h3 { font-size: 17px; font-weight: 900; color: var(--text); margin-bottom: 4px; }
+        .prod-info .unit-tag { 
+            font-size: 10px; font-weight: 800; 
+            background: var(--table-head-bg); 
+            padding: 2px 8px; border-radius: 4px; 
+            color: var(--muted);
+        }
+        
+        .prod-price { text-align: right; }
+        .price-val { font-size: 18px; font-weight: 900; color: var(--primary); display: block; font-family: 'JetBrains Mono'; }
+        .status-pill { font-size: 9px; font-weight: 900; text-transform: uppercase; margin-top: 5px; display: inline-block;}
+    }
+
+    /* ── TABLE STYLING ── */
+    .desktop-table table { width: 100%; border-collapse: collapse; }
+    .desktop-table th { font-size: 10px; font-weight: 800; }
+    .desktop-table td { padding: 20px 15px; }
+    
+    .price-badge {
+        background: var(--primary-pale);
+        color: var(--primary);
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-weight: 900;
+        font-family: 'JetBrains Mono';
+        border: 1px solid rgba(var(--primary-rgb), 0.1);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 
+<!-- Quick Stats -->
+<div class="product-stats">
+    <div class="stat-mini">
+        <label>Total Variants</label>
+        <span>{{ products.count }}</span>
+    </div>
+    <div class="stat-mini">
+    <label>Active Products</label>
+    <span style="color: #059669;">{{ active_products_count }}</span>
+</div>
+</div>
+
+<!-- Desktop Table -->
 <div class="card desktop-table">
     <div class="table-wrap">
         <table>
             <thead>
                 <tr>
-                    <th>Product Name</th>
-                    <th>Unit</th>
-                    <th>Default Rate</th>
+                    <th style="width: 300px;">Product Identity</th>
+                    <th>Measurement</th>
+                    <th>Standard Rate</th>
                     <th>Status</th>
-                    <th style="text-align: right;">Actions</th>
+                    <th style="text-align: right;">Operations</th>
                 </tr>
             </thead>
             <tbody>
                 {% for p in products %}
                 <tr>
-                    <td style="font-weight:700; color: var(--dark);">🥛 {{ p.name }}</td>
-                    <td><span class="badge badge-info" style="border-radius: 6px;">{{ p.unit }}</span></td>
-                    <td class="font-mono" style="font-weight:800; font-size:15px; color: var(--primary);">Rs. {{ p.default_price }}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="font-size: 24px;">🥛</div>
+                            <div>
+                                <div style="font-weight:900; color: var(--text); font-size: 15px;">{{ p.name }}</div>
+                                <div style="font-size: 11px; color: var(--muted); font-weight: 600;">SKU: MW-{{ p.pk|stringformat:"03d" }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="badge" style="background: #e2e8f0; color: #475569; font-weight: 800;">PER {{ p.unit|upper }}</span></td>
+                    <td>
+                        <span class="price-badge">₹{{ p.default_price }}</span>
+                    </td>
                     <td>
                         {% if p.is_active %}
-                            <span class="badge badge-success">● Active</span>
+                            <span class="badge badge-success" style="padding: 6px 12px;">ACTIVE</span>
                         {% else %}
-                            <span class="badge badge-danger">✗ Inactive</span>
+                            <span class="badge badge-danger" style="padding: 6px 12px;">DISABLED</span>
                         {% endif %}
                     </td>
                     <td style="text-align: right;">
-                        <a href="{% url 'product_edit' p.pk %}" class="btn btn-secondary btn-sm">✏️ Edit Price</a>
+                        <a href="{% url 'product_edit' p.pk %}" class="btn btn-secondary btn-sm" style="font-weight: 800;">✏️ Edit Configuration</a>
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="5" class="text-center" style="padding:40px; color:var(--muted);">No products found.</td></tr>
+                <tr><td colspan="5" class="text-center" style="padding:60px; color:var(--muted); font-weight: 700;">No product variants registered yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 
+<!-- Mobile Grid -->
 <div class="product-grid">
     {% for p in products %}
     <div class="product-mobile-card">
         <div class="prod-info">
-            <span class="unit-tag">{{ p.unit }}</span>
-            <h3>🥛 {{ p.name }}</h3>
+            <span class="unit-tag">{{ p.unit|upper }}</span>
+            <h3>{{ p.name }}</h3>
             {% if p.is_active %}
-                <span style="font-size: 10px; color: var(--success); font-weight: 700;">● ACTIVE</span>
+                <span class="status-pill" style="color: #059669;">● Online</span>
             {% else %}
-                <span style="font-size: 10px; color: var(--danger); font-weight: 700;">✗ INACTIVE</span>
+                <span class="status-pill" style="color: var(--danger);">○ Offline</span>
             {% endif %}
         </div>
         <div class="prod-price">
-            <span class="price-val">Rs.{{ p.default_price }}</span>
-            <a href="{% url 'product_edit' p.pk %}" class="btn btn-primary btn-sm" style="margin-top: 8px; padding: 6px 12px;">Edit</a>
+            <span class="price-val">₹{{ p.default_price }}</span>
+            <a href="{% url 'product_edit' p.pk %}" class="btn btn-primary btn-sm" style="margin-top: 10px; width: 100%; font-weight: 800;">Settings</a>
         </div>
     </div>
     {% empty %}
-    <div class="empty-state">
-        <div class="icon">🥛</div>
-        <p>No products yet.</p>
+    <div style="text-align: center; padding: 60px 20px; border: 2px dashed var(--border); border-radius: var(--radius);">
+        <p style="font-weight: 800; color: var(--muted);">No products found.</p>
     </div>
     {% endfor %}
 </div>

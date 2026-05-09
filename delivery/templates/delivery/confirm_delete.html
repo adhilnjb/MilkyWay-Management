@@ -1,28 +1,167 @@
 {% extends 'delivery/base.html' %}
-{% block title %}Confirm Delete – MilkDairy Pro{% endblock %}
-{% block page_title %}Confirm Delete{% endblock %}
+{% block title %}Confirm Delete – Milkyway Pro{% endblock %}
+{% block page_title %}Security Check{% endblock %}
+
+{% block extra_css %}
+<style>
+    .delete-container {
+        max-width: 500px;
+        margin: 40px auto;
+        animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .delete-card {
+        background: white;
+        border-radius: 28px;
+        padding: 45px 30px;
+        text-align: center;
+        border: 1px solid #fee2e2;
+        box-shadow: 0 25px 50px -12px rgba(220, 38, 38, 0.08);
+    }
+
+    .warning-icon-wrapper {
+        width: 80px;
+        height: 80px;
+        background: #fef2f2;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 24px;
+        color: #dc2626;
+        font-size: 32px;
+        border: 1px solid #fee2e2;
+    }
+
+    .delete-title {
+        font-size: 24px;
+        font-weight: 800;
+        color: #1e293b;
+        margin-bottom: 12px;
+        letter-spacing: -0.5px;
+    }
+
+    .delete-desc {
+        color: #64748b;
+        font-size: 15px;
+        line-height: 1.6;
+        margin-bottom: 24px;
+    }
+
+    .object-tag {
+        background: #f1f5f9;
+        color: #334155;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        font-size: 14px;
+    }
+
+    .warning-box {
+        background: #fffbeb;
+        border: 1px solid #fef3c7;
+        border-left: 4px solid #fbbf24;
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 30px;
+        text-align: left;
+        font-size: 13.5px;
+        color: #92400e;
+        display: flex;
+        gap: 12px;
+        line-height: 1.4;
+    }
+
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .btn-confirm-delete {
+        background: #dc2626;
+        color: white;
+        border: none;
+        padding: 18px;
+        border-radius: 16px;
+        font-size: 16px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.2);
+    }
+
+    .btn-confirm-delete:hover {
+        background: #b91c1c;
+        transform: translateY(-2px);
+        box-shadow: 0 15px 20px -3px rgba(220, 38, 38, 0.3);
+    }
+
+    .btn-cancel {
+        background: #f8fafc;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+        padding: 18px;
+        border-radius: 16px;
+        font-size: 16px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+        background: white;
+        color: #1e293b;
+        border-color: #cbd5e1;
+    }
+
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div style="max-width:480px;">
-<div class="card">
-  <div class="card-body" style="text-align:center;padding:40px;">
-    <div style="font-size:56px;margin-bottom:16px;">⚠️</div>
-    <h2 style="margin-bottom:8px;color:var(--dark);">Delete {{ type }}?</h2>
-    <p style="color:var(--muted);margin-bottom:{% if warning %}12px{% else %}24px{% endif %};">
-      You are about to delete <strong>{{ object }}</strong>.<br>
-      This action <strong>cannot be undone</strong>.
-    </p>
-    {% if warning %}
-    <div style="background:var(--accent-light);border:1.5px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:13px;color:#92400e;">
-      ⚠️ {{ warning }}
+<div class="delete-container">
+    <div class="delete-card">
+        <div class="warning-icon-wrapper">
+            <i class="fas fa-trash-alt"></i>
+        </div>
+        
+        <h2 class="delete-title">Permanently delete this {{ type }}?</h2>
+        
+        <p class="delete-desc">
+            You are about to remove <span class="object-tag">{{ object }}</span> from the system. 
+            This action is irreversible and may affect linked reports.
+        </p>
+
+        {% if warning %}
+        <div class="warning-box">
+            <div style="font-size: 18px;">⚠️</div>
+            <div>
+                <strong>System Warning:</strong><br>
+                {{ warning }}
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="action-buttons">
+                <button type="submit" class="btn-confirm-delete">
+                    Confirm Destruction
+                </button>
+                <a href="javascript:history.back()" class="btn-cancel">
+                    Nevermind, Go Back
+                </a>
+            </div>
+        </form>
     </div>
-    {% endif %}
-    <form method="post" style="display:flex;gap:10px;justify-content:center;">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-danger btn-lg">🗑 Yes, Delete</button>
-      <a href="javascript:history.back()" class="btn btn-secondary btn-lg">Cancel</a>
-    </form>
-  </div>
-</div>
+    
+    <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 24px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+        Milkyway Pro Security Protocol v2.0
+    </p>
 </div>
 {% endblock %}

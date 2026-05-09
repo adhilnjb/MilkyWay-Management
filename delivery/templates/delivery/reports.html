@@ -5,54 +5,46 @@
 
 {% block extra_css %}
 <style>
-/* ── RESPONSIVE GRID OVERRIDES ── */
 .reports-grid-top {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 18px;
-    margin-bottom: 18px;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
 }
-
 .reports-grid-mid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-    margin-bottom: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
 }
-
 @media (max-width: 1024px) {
-    .reports-grid-top, .reports-grid-mid {
-        grid-template-columns: 1fr; /* Stack charts and tables on mobile */
-    }
-    .stats-grid {
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* Better stat stacking */
-    }
+  .reports-grid-top, .reports-grid-mid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 }
-
 @media (max-width: 600px) {
-    .stats-grid {
-        grid-template-columns: 1fr 1fr; /* 2 stats per row on small phones */
-    }
-    .stat-value { font-size: 20px !important; }
-    .filter-row { flex-direction: column; align-items: stretch !important; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .stat-value { font-size: 20px !important; }
+  .filter-row { flex-direction: column; align-items: stretch !important; }
 }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.chart-box { position: relative; height: 250px; width: 100%; }
 
-/* ── TABLE WRAP ── */
-.table-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
+/* ── idle row ── */
+.row-idle { opacity: 0.6; background: var(--table-head-bg); }
 
-/* ── CHART RESIZING ── */
-.chart-box {
-    position: relative;
-    height: 250px;
-    width: 100%;
+/* ── idle badge ── */
+.badge-idle {
+  background: var(--border);
+  color: var(--muted);
+  padding: 4px 10px; border-radius: 99px;
+  font-size: 11px; font-weight: 700;
 }
 </style>
 {% endblock %}
 
 {% block content %}
+
+<!-- Filter Card -->
 <div class="card" style="margin-bottom:18px;">
   <div class="card-body" style="padding:14px 20px;">
     <form method="get" class="filter-row" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
@@ -66,11 +58,12 @@
         <label style="font-size:10px;font-weight:800;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px;letter-spacing:1px;">Year</label>
         <input type="number" name="year" class="form-control" value="{{ year }}" onchange="this.form.submit()">
       </div>
-      <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">📊 Update Report</button>
+      <button type="submit" class="btn btn-primary" style="padding:10px 20px;">📊 Update Report</button>
     </form>
   </div>
 </div>
 
+<!-- Stat Cards -->
 <div class="stats-grid">
   <div class="stat-card blue">
     <div class="stat-icon">📦</div>
@@ -94,28 +87,34 @@
   </div>
 </div>
 
+<!-- Charts Row -->
 <div class="reports-grid-top">
   <div class="card">
     <div class="card-header"><span class="card-title">📈 Daily Revenue Trend</span></div>
-    <div class="card-body">
-        <div class="chart-box"><canvas id="dailyChart"></canvas></div>
+    <div class="card-body" style="padding:16px;">
+      <div class="chart-box"><canvas id="dailyChart"></canvas></div>
     </div>
   </div>
   <div class="card">
     <div class="card-header"><span class="card-title">💸 Expense Split</span></div>
-    <div class="card-body" style="display:flex; justify-content:center;">
-        <div class="chart-box" style="max-width:250px;"><canvas id="expPie"></canvas></div>
+    <div class="card-body" style="padding:16px; display:flex; justify-content:center;">
+      <div class="chart-box" style="max-width:250px;"><canvas id="expPie"></canvas></div>
     </div>
   </div>
 </div>
 
+<!-- Tables Row -->
 <div class="reports-grid-mid">
   <div class="card">
     <div class="card-header"><span class="card-title">🏆 Customer Performance</span></div>
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Customer</th><th>Product Split</th><th style="text-align:right;">Revenue</th></tr>
+          <tr>
+            <th>Customer</th>
+            <th>Product Split</th>
+            <th style="text-align:right;">Revenue</th>
+          </tr>
         </thead>
         <tbody>
           {% for row in monthly_summary %}
@@ -126,13 +125,13 @@
             </td>
             <td>
               {% for prod in row.products %}
-              <div style="font-size:11px; margin-bottom:2px;">
+              <div style="font-size:11px; margin-bottom:2px; color:var(--text);">
                 📦 {{ prod.product__name }} ({{ prod.qty|floatformat:1 }}L)
               </div>
               {% endfor %}
             </td>
-            <td class="font-mono fw-800" style="color:var(--primary); text-align:right;">
-                Rs.{{ row.total_revenue|floatformat:0 }}
+            <td class="font-mono" style="color:var(--primary-light); text-align:right; font-weight:800;">
+              Rs.{{ row.total_revenue|floatformat:0 }}
             </td>
           </tr>
           {% endfor %}
@@ -145,12 +144,14 @@
     <div class="card-header"><span class="card-title">🏷️ Expense Categories</span></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Category</th><th style="text-align:right;">Total Amount</th></tr></thead>
+        <thead>
+          <tr><th>Category</th><th style="text-align:right;">Total Amount</th></tr>
+        </thead>
         <tbody>
           {% for e in monthly_expenses %}
           <tr>
-            <td style="font-weight:600;">{{ e.category__icon|default:'🌿' }} {{ e.category__name|default:'Other' }}</td>
-            <td class="font-mono fw-800" style="color:var(--danger); text-align:right;">Rs.{{ e.total|floatformat:2 }}</td>
+            <td style="font-weight:600; color:var(--text);">{{ e.category__icon|default:'🌿' }} {{ e.category__name|default:'Other' }}</td>
+            <td class="font-mono" style="color:var(--danger); text-align:right; font-weight:800;">Rs.{{ e.total|floatformat:2 }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -159,6 +160,7 @@
   </div>
 </div>
 
+<!-- Daily Log -->
 <div class="card">
   <div class="card-header"><span class="card-title">📅 Daily Performance Log</span></div>
   <div class="table-wrap">
@@ -168,14 +170,17 @@
       </thead>
       <tbody>
         {% for d in daily_totals %}
-        <tr {% if d.amount == 0 %}style="opacity:0.6; background:#f9fafb;"{% endif %}>
-          <td style="font-weight:700;">{{ d.date|date:"d M" }}</td>
+        <tr {% if d.amount == 0 %}class="row-idle"{% endif %}>
+          <td style="font-weight:700; color:var(--text);">{{ d.date|date:"d M" }}</td>
           <td>
-            {% if d.amount > 0 %}<span class="badge badge-success">Active</span>
-            {% else %}<span class="badge" style="background:#e5e7eb;">Idle</span>{% endif %}
+            {% if d.amount > 0 %}
+              <span class="badge badge-success">Active</span>
+            {% else %}
+              <span class="badge-idle">Idle</span>
+            {% endif %}
           </td>
-          <td class="font-mono">{{ d.qty|default:"0" }}L</td>
-          <td class="font-mono fw-800" style="color:var(--primary);">Rs.{{ d.amount|default:"0" }}</td>
+          <td class="font-mono" style="color:var(--text);">{{ d.qty|default:"0" }}L</td>
+          <td class="font-mono" style="color:var(--primary-light); font-weight:800;">Rs.{{ d.amount|default:"0" }}</td>
           <td class="font-mono" style="color:var(--danger);">Rs.{{ d.expense|default:"0" }}</td>
         </tr>
         {% endfor %}
@@ -183,42 +188,87 @@
     </table>
   </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Logic remains same, added responsive:true and height handling
+// Read CSS variables so charts match the active theme
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+const gridColor  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+const tickColor  = cssVar('--muted');
+const legendColor = cssVar('--text');
+
+Chart.defaults.color = tickColor;
+
+// ── Daily Revenue Bar Chart ──
 const dLabels = [{% for d in daily_totals %}"{{ d.date|date:'d M' }}",{% endfor %}];
-const dRev = [{% for d in daily_totals %}{{ d.amount|floatformat:2 }},{% endfor %}];
+const dRev    = [{% for d in daily_totals %}{{ d.amount|floatformat:2 }},{% endfor %}];
 
 if (dLabels.length) {
   new Chart(document.getElementById('dailyChart'), {
     type: 'bar',
     data: {
       labels: dLabels,
-      datasets: [{ label:'Revenue', data:dRev, backgroundColor:'rgba(13, 115, 119, 0.2)', borderColor:'#0d7377', borderWidth:2, borderRadius:4 }]
+      datasets: [{
+        label: 'Revenue',
+        data: dRev,
+        backgroundColor: isDark ? 'rgba(20,160,133,0.25)' : 'rgba(13,115,119,0.15)',
+        borderColor: '#14a085',
+        borderWidth: 2,
+        borderRadius: 4
+      }]
     },
-    options: { 
-      responsive: true, maintainAspectRatio: false,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 9 } } } }
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: gridColor },
+          ticks: { color: tickColor, font: { size: 10 } }
+        },
+        x: {
+          grid: { color: gridColor },
+          ticks: { color: tickColor, font: { size: 9 } }
+        }
+      }
     }
   });
 }
 
+// ── Expense Doughnut Chart ──
 const eLabels = [{% for e in monthly_expenses %}"{{ e.category__name|default:'Other' }}",{% endfor %}];
-const eData = [{% for e in monthly_expenses %}{{ e.total|floatformat:2 }},{% endfor %}];
+const eData   = [{% for e in monthly_expenses %}{{ e.total|floatformat:2 }},{% endfor %}];
 
 if (eLabels.length) {
   new Chart(document.getElementById('expPie'), {
     type: 'doughnut',
     data: {
       labels: eLabels,
-      datasets: [{ data: eData, backgroundColor: ['#ef4444','#f59e0b','#0d7377','#10b981','#8b5cf6'], borderWidth: 2 }]
+      datasets: [{
+        data: eData,
+        backgroundColor: ['#ef4444','#f59e0b','#0d7377','#10b981','#8b5cf6'],
+        borderColor: isDark ? '#1e293b' : '#ffffff',
+        borderWidth: 2
+      }]
     },
-    options: { 
-      responsive: true, maintainAspectRatio: false, cutout: '65%',
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: legendColor, boxWidth: 10, font: { size: 10 } }
+        }
+      }
     }
   });
 }

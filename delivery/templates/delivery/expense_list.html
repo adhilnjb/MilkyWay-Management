@@ -1,186 +1,210 @@
 {% extends 'delivery/base.html' %}
-{% block title %}Expenses – MilkDairy Pro{% endblock %}
+{% block title %}Expenses – Milkyway Pro{% endblock %}
+{% block page_title %}Expense Analytics{% endblock %}
+{% block page_sub %}Monitor operational costs and cash flow{% endblock %}
 
 {% block extra_css %}
 <style>
 :root {
-    --card-radius: 20px;
+    --card-radius: 16px;
     --accent: #0f4c81;
     --soft-danger: #fff1f2;
 }
 
-/* ── RESPONSIVE GRID OVERRIDES ── */
+/* ── LAYOUT ── */
+.content-wrapper { padding: 20px 0; max-width: 1400px; margin: 0 auto; }
+
 .dashboard-top-grid {
     display: grid; 
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+    grid-template-columns: 1.5fr repeat(auto-fit, minmax(200px, 1fr)); 
     gap: 20px; 
     margin-bottom: 30px;
 }
 
 .dashboard-mid-grid {
     display: grid; 
-    grid-template-columns: 1fr 340px; 
+    grid-template-columns: 1fr 360px; 
     gap: 24px; 
     margin-bottom: 30px;
 }
 
-@media (max-width: 992px) {
-    .dashboard-mid-grid {
-        grid-template-columns: 1fr; /* Stack Spending Categories and Chart */
-    }
-    .exp-row.header { display: none; } /* Hide headers on small screens */
-    
-    .exp-row {
-        grid-template-columns: 1fr 1fr !important; /* Switch to 2 columns on mobile */
-        gap: 10px;
-        padding: 20px !important;
-    }
-    .exp-row div:nth-child(2) { grid-column: span 2; } /* Date spans full width */
-    .exp-row div:last-child { text-align: left !important; justify-content: flex-start !important; }
-}
-
-@media (max-width: 600px) {
-    .content-wrapper { padding: 15px; }
-    .stat-card { padding: 20px !important; }
-    .exp-cat-bar { justify-content: center; }
-}
-
-/* ── EXISTING STYLES (NO CHANGES TO LOGIC) ── */
-.content-wrapper { padding: 24px; max-width: 1400px; margin: 0 auto; }
-
+/* ── STAT CARDS ── */
 .stat-card {
-    border: 1px solid rgba(0,0,0,0.05) !important;
-    background: white;
-    box-shadow: 0 4px 20px -2px rgba(0,0,0,0.05);
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
     border-radius: var(--card-radius);
-    padding: 24px !important;
-    transition: all 0.3s ease;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
-.exp-cat-bar { display: flex; flex-wrap: wrap; gap: 10px; }
+.main-stat {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: white;
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.main-stat::after {
+    content: '';
+    position: absolute;
+    top: -20%; right: -10%;
+    width: 150px; height: 150px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+}
+
+/* ── CHIPS & TAGS ── */
+.exp-cat-bar { display: flex; flex-wrap: wrap; gap: 8px; }
 .cat-chip {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 16px; border-radius: 99px;
-    background: white; border: 1px solid #e2e8f0;
-    font-size: 13px; font-weight: 600;
+    padding: 8px 14px; border-radius: 10px;
+    background: var(--table-head-bg); border: 1px solid var(--border);
+    font-size: 12px; font-weight: 700; color: var(--text);
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
 }
 
-.exp-list { background: white; border-radius: var(--card-radius); box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; }
-.exp-row {
-    display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr 1fr 80px;
-    align-items: center; padding: 18px 24px;
-    border-bottom: 1px solid #f1f5f9;
-}
-.exp-row.header {
-    background: #f8fafc; font-size: 11px; font-weight: 800; 
-    text-transform: uppercase; color: #94a3b8;
-}
-
-.form-control-custom {
-    background: #f1f5f9; border: 2px solid transparent;
-    border-radius: 12px; padding: 12px 16px;
-    font-size: 14px; font-weight: 600; width: 100%;
-}
-
-.pay-tag { padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.pay-tag { padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
 .pay-tag.upi { background: #e0f2fe; color: #0369a1; }
 .pay-tag.cash { background: #dcfce7; color: #15803d; }
+
+/* ── LIST VIEW ── */
+.exp-list { background: var(--card); border-radius: var(--card-radius); border: 1px solid var(--border); overflow: hidden; }
+.exp-row {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr 100px;
+    align-items: center; padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+}
+.exp-row.header {
+    background: var(--table-head-bg); font-size: 10px; font-weight: 900; 
+    text-transform: uppercase; color: var(--muted); letter-spacing: 1px;
+}
+
+/* ── MOBILE ADAPTATION ── */
+@media (max-width: 992px) {
+    .dashboard-top-grid, .dashboard-mid-grid { grid-template-columns: 1fr; }
+    .exp-row.header { display: none; }
+    .exp-row {
+        grid-template-columns: 1fr 1fr;
+        padding: 20px;
+        gap: 12px;
+    }
+    .exp-row div:first-child { grid-column: span 2; font-size: 16px; }
+    .exp-row div:last-child { justify-content: flex-end; }
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="content-wrapper">
     
+    <!-- Top Stats Row -->
     <div class="dashboard-top-grid">
-        <div class="stat-card" style="background: linear-gradient(135deg, #0f4c81 0%, #1e3a8a 100%); color: white;">
-            <div style="display:flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <div style="font-size: 10px; font-weight: 800; opacity: 0.8; text-transform: uppercase;">Total Expenses</div>
-                    <div style="font-size: 32px; font-weight: 900; margin-top: 8px;">Rs.{{ total_amount|floatformat:0 }}</div>
-                </div>
-                <div style="font-size: 40px; opacity: 0.3;">📉</div>
+        <div class="stat-card main-stat">
+            <div>
+                <div style="font-size: 11px; font-weight: 800; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px;">Monthly Outflow</div>
+                <div style="font-size: 36px; font-weight: 900; margin-top: 5px; font-family: 'JetBrains Mono';">₹{{ total_amount|floatformat:0 }}</div>
             </div>
-            <div style="margin-top: 15px; font-size: 11px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
-                {{ month|default:"Current" }} Report
+            <div style="margin-top: 20px; display: flex; align-items: center; gap: 8px;">
+                <span style="background: rgba(255,255,255,0.1); padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;">
+                    🗓️ {{ month|default:"Current Month" }}
+                </span>
             </div>
         </div>
 
-        {% for bc in by_cat|slice:":3" %}
+        {% for bc in by_cat|slice:":2" %}
         <div class="stat-card">
-            <div style="font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">{{ bc.category__name|default:'Other' }}</div>
-            <div style="font-size: 22px; font-weight: 800; color: #1e293b; margin-top: 4px;">Rs.{{ bc.total|floatformat:0 }}</div>
-            <div style="margin-top: 8px; font-size: 11px; color: #64748b;">{{ bc.count }} bills</div>
+            <label style="font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase;">{{ bc.category__name|default:'General' }}</label>
+            <div style="font-size: 24px; font-weight: 900; color: var(--text); margin-top: 5px;">₹{{ bc.total|floatformat:0 }}</div>
+            <div style="margin-top: 10px; font-size: 11px; font-weight: 700; color: var(--primary);">{{ bc.count }} Transactions</div>
         </div>
         {% endfor %}
     </div>
 
     <div class="dashboard-mid-grid">
+        <!-- Categories Breakdown -->
         <div class="stat-card">
-            <h3 style="font-size: 14px; font-weight: 800; margin-bottom: 20px;">Spending Categories</h3>
+            <h3 style="font-size: 14px; font-weight: 900; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;">Spending by Category</h3>
             <div class="exp-cat-bar">
                 {% for bc in by_cat %}
                 <div class="cat-chip">
                     <span>{{ bc.category__name|default:'Other' }}</span>
-                    <span style="font-weight: 800; color: var(--accent);">Rs.{{ bc.total|floatformat:0 }}</span>
+                    <span style="font-family: 'JetBrains Mono'; font-weight: 900; color: var(--primary);">₹{{ bc.total|floatformat:0 }}</span>
                 </div>
                 {% endfor %}
             </div>
         </div>
         
-        <div class="stat-card" style="display:flex; flex-direction:column; align-items:center;">
-            <div style="height: 180px; width: 100%;"><canvas id="expChart"></canvas></div>
-            <div style="margin-top: 15px; text-align: center;">
-                <div style="font-size: 10px; font-weight: 800; color: #94a3b8;">TOP OUTFLOW</div>
-                <div style="font-size: 14px; font-weight: 700;">{{ by_cat.0.category__name }}</div>
+        <!-- Chart Section -->
+        <div class="stat-card" style="align-items: center;">
+            <div style="height: 200px; width: 100%; position: relative;">
+                <canvas id="expChart"></canvas>
+            </div>
+            <div style="margin-top: 20px; text-align: center;">
+                <div style="font-size: 10px; font-weight: 900; color: var(--muted); letter-spacing: 1px;">PRIMARY EXPENSE</div>
+                <div style="font-size: 16px; font-weight: 900; color: var(--text);">{{ by_cat.0.category__name }}</div>
             </div>
         </div>
     </div>
 
-    <div class="stat-card" style="margin-bottom: 24px; padding: 15px 24px !important;">
-        <form method="get" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; align-items: flex-end;">
+    <!-- Filters -->
+    <div class="stat-card" style="margin-bottom: 24px; padding: 15px 24px;">
+        <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: flex-end;">
             <div>
-                <input type="text" name="q" value="{{ q }}" class="form-control-custom" placeholder="Search...">
+                <input type="text" name="q" value="{{ q }}" class="form-control" style="height: 48px; font-weight: 700;" placeholder="Search bills...">
             </div>
             <div>
-                <select name="month" class="form-control-custom" onchange="this.form.submit()">
+                <select name="month" class="form-control" style="height: 48px; font-weight: 700;" onchange="this.form.submit()">
                     {% for num,name in months %}<option value="{{ num }}" {% if month == num %}selected{% endif %}>{{ name }}</option>{% endfor %}
                 </select>
             </div>
-            <div style="display:flex; gap: 8px;">
-                <button type="submit" class="btn btn-primary" style="height: 48px; border-radius: 12px; flex: 1;">Apply</button>
-                <a href="?" class="btn btn-secondary" style="height: 48px; border-radius: 12px; width: 48px; display: flex; align-items: center; justify-content: center;">↺</a>
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" class="btn btn-primary" style="height: 48px; flex: 1; font-weight: 800;">Filter</button>
+                <a href="?" class="btn btn-secondary" style="height: 48px; width: 48px; display: flex; align-items: center; justify-content: center;">↺</a>
             </div>
         </form>
     </div>
 
+    <!-- Transaction Table -->
     <div class="exp-list">
         <div class="exp-row header">
-            <div>CATEGORY</div>
-            <div>DATE</div>
-            <div>AMOUNT</div>
-            <div>MODE</div>
-            <div style="text-align: right;">ACTION</div>
+            <div>Expense Category</div>
+            <div>Date</div>
+            <div>Amount</div>
+            <div>Mode</div>
+            <div style="text-align: right;">Actions</div>
         </div>
 
         {% for exp in page_obj %}
         <div class="exp-row">
-            <div><span style="font-weight: 700; color: var(--accent);">{{ exp.category.name }}</span></div>
-            <div style="font-size: 12px; color: #94a3b8;">{{ exp.date|date:"d M" }}</div>
-            <div><span style="font-size: 16px; font-weight: 900;">Rs.{{ exp.amount|floatformat:0 }}</span></div>
+            <div>
+                <span style="font-weight: 900; color: var(--text); font-size: 15px;">{{ exp.category.name }}</span>
+                {% if exp.description %}
+                <div style="font-size: 10px; color: var(--muted); font-weight: 600;">{{ exp.description|truncatechars:30 }}</div>
+                {% endif %}
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--muted); font-family: 'JetBrains Mono';">{{ exp.date|date:"d M, Y" }}</div>
+            <div><span style="font-size: 18px; font-weight: 900; color: #e11d48; font-family: 'JetBrains Mono';">₹{{ exp.amount|floatformat:0 }}</span></div>
             <div><span class="pay-tag {{ exp.payment_mode }}">{{ exp.payment_mode }}</span></div>
-            <div style="text-align: right; display: flex; gap: 10px; justify-content: flex-end;">
-                <a href="{% url 'expense_edit' exp.pk %}">✏️</a>
-                <a href="{% url 'expense_delete' exp.pk %}">🗑</a>
+            <div style="text-align: right; display: flex; gap: 12px; justify-content: flex-end;">
+                <a href="{% url 'expense_edit' exp.pk %}" style="text-decoration: none;">✏️</a>
+                <a href="{% url 'expense_delete' exp.pk %}" style="text-decoration: none;" onclick="return confirm('Delete this record?')">🗑️</a>
             </div>
         </div>
         {% empty %}
-        <div style="padding: 40px; text-align: center; color: var(--muted);">No records found.</div>
+        <div style="padding: 60px; text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 10px; opacity: 0.2;">💸</div>
+            <p style="font-weight: 800; color: var(--muted);">No expense records found for this period.</p>
+        </div>
         {% endfor %}
 
-        <div style="padding: 20px 24px; background: #f8fafc; display: flex; justify-content: space-between;">
-            <div style="font-weight: 700; color: #94a3b8;">{{ page_obj.paginator.count }} Total</div>
-            <div style="font-weight: 900; color: var(--accent);">Rs.{{ total_amount|floatformat:2 }}</div>
+        <!-- Footer Total -->
+        <div style="padding: 24px; background: var(--table-head-bg); display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border);">
+            <div style="font-weight: 800; color: var(--muted); font-size: 12px; text-transform: uppercase;">Total Documented</div>
+            <div style="font-size: 20px; font-weight: 900; color: var(--text); font-family: 'JetBrains Mono';">₹{{ total_amount|floatformat:2 }}</div>
         </div>
     </div>
 </div>
@@ -200,12 +224,13 @@ if (cats.length) {
             datasets: [{ 
                 data: totals, 
                 backgroundColor: ['#0f4c81', '#38bdf8', '#818cf8', '#fb7185', '#fbbf24'], 
-                borderWidth: 0,
-                hoverOffset: 10
+                borderWidth: 4,
+                borderColor: '#ffffff',
+                hoverOffset: 15
             }]
         },
         options: {
-            responsive: true, maintainAspectRatio: false, cutout: '75%',
+            responsive: true, maintainAspectRatio: false, cutout: '80%',
             plugins: { legend: { display: false } }
         }
     });

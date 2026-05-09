@@ -8,102 +8,138 @@
 
 {% block extra_css %}
 <style>
-/* ── OPTIMIZED GRID ── */
-.category-wrapper {
-    display: grid;
-    grid-template-columns: 320px 1fr; /* Smaller fixed width for Form on Desktop */
-    gap: 24px;
-    align-items: start;
-}
+    /* ── SYSTEM GRID ── */
+    .category-wrapper {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 24px;
+        align-items: start;
+    }
 
-@media (max-width: 1024px) {
-    .category-wrapper { grid-template-columns: 1fr; }
-}
+    @media (max-width: 1024px) {
+        .category-wrapper { grid-template-columns: 1fr; }
+    }
 
-/* ── COMPACT FORM CARD ── */
-.compact-card {
-    background: white; border-radius: 20px; padding: 20px;
-    border: 1px solid var(--border); box-shadow: var(--shadow);
-    position: sticky; top: 90px;
-}
+    /* ── COMPACT FORM CARD ── */
+    .compact-card {
+        background: var(--card);
+        border-radius: var(--radius);
+        padding: 24px;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+        position: sticky;
+        top: 20px;
+    }
 
-.preview-circle {
-    width: 54px; height: 54px;
-    background: var(--primary-pale);
-    border-radius: 14px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 26px; margin: 0 auto 12px;
-    border: 2px solid var(--primary);
-}
+    .preview-circle {
+        width: 60px;
+        height: 60px;
+        background: var(--primary-pale);
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        margin: 0 auto 16px;
+        border: 2px solid var(--primary);
+        transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
 
-.input-sm { height: 44px !important; font-size: 13.5px !important; }
+    .input-sm { 
+        height: 46px !important; 
+        font-size: 14px !important; 
+        font-weight: 700 !important;
+    }
 
-/* ── TABLE VISUALS ── */
-.cat-table th { padding: 12px 15px; font-size: 10px; }
-.cat-table td { padding: 14px 15px; }
+    /* ── TABLE VISUALS ── */
+    .cat-table th { 
+        padding: 12px 15px; 
+        font-size: 10px; 
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .cat-table td { padding: 16px 15px; vertical-align: middle; }
 
-.usage-badge {
-    background: #f1f5f9; color: var(--muted);
-    padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700;
-}
+    .usage-badge {
+        background: var(--table-head-bg);
+        color: var(--muted);
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 800;
+        border: 1px solid var(--border);
+    }
 
-@media (max-width: 600px) {
-    .compact-card { position: relative; top: 0; padding: 15px; }
-    .cat-table th:nth-child(3), .cat-table td:nth-child(3) { display: none; }
-}
+    .color-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+    }
+
+    @media (max-width: 600px) {
+        .compact-card { position: relative; top: 0; padding: 20px; }
+        /* Hide usage on small mobile to save space */
+        .cat-table th:nth-child(3), .cat-table td:nth-child(3) { display: none; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="category-wrapper">
     
+    <!-- Sidebar: Add Form -->
     <div class="compact-card">
-        <div style="text-align: center; margin-bottom: 18px;">
+        <div style="text-align: center; margin-bottom: 24px;">
             <div class="preview-circle" id="iconPreview">📦</div>
-            <h3 style="font-size: 15px; font-weight: 800; color: var(--dark);">Add Category</h3>
+            <h3 style="font-size: 16px; font-weight: 900; color: var(--text);">New Category</h3>
+            <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Organize your business costs</p>
         </div>
 
         <form method="post">
             {% csrf_token %}
             
-            <div class="form-group" style="margin-bottom: 15px;">
-                <label style="font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; display: block;">Name</label>
-                <input type="text" name="name" class="form-control input-sm" id="id_name" required placeholder="Feed, Vet, Fuel..." style="font-weight: 700;">
+            <div class="form-group" style="margin-bottom: 18px;">
+                <label class="info-label" style="margin-bottom: 8px; display: block;">Category Name</label>
+                <input type="text" name="name" class="form-control input-sm" id="id_name" required placeholder="e.g. Fuel, Maintenance" autocomplete="off">
             </div>
 
-            <div class="form-group" style="margin-bottom: 15px;">
-                <label style="font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; display: block;">Icon</label>
-                <select name="icon" class="form-control input-sm" id="id_icon" style="font-weight: 700;">
+            <div class="form-group" style="margin-bottom: 18px;">
+                <label class="info-label" style="margin-bottom: 8px; display: block;">Select Icon</label>
+                <select name="icon" class="form-control input-sm" id="id_icon">
                     {% for val, lbl in icon_choices %}
                         <option value="{{ val }}">{{ lbl }}</option>
                     {% endfor %}
                 </select>
             </div>
 
-            <div class="form-group" style="margin-bottom: 20px;">
-                <label style="font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; display: block;">Brand Color</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="color" name="color" value="#0d7377" class="form-control" style="width: 45px; height: 40px; padding: 3px; cursor: pointer; border-radius: 8px;">
-                    <span style="font-size: 11px; color: var(--muted); font-weight: 600;">Hex UI color</span>
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label class="info-label" style="margin-bottom: 8px; display: block;">Brand Color</label>
+                <div style="display: flex; gap: 12px; align-items: center; background: var(--table-head-bg); padding: 8px; border-radius: 12px; border: 1px solid var(--border);">
+                    <input type="color" name="color" value="#0d7377" class="form-control" style="width: 48px; height: 38px; padding: 2px; cursor: pointer; border-radius: 8px; border: none;">
+                    <span style="font-size: 12px; color: var(--text); font-weight: 700; font-family: 'JetBrains Mono';">#0D7377</span>
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width: 100%; height: 46px; justify-content: center; font-size: 14px;">
-                <span>➕</span> Create Now
+            <button type="submit" class="btn btn-primary" style="width: 100%; height: 50px; justify-content: center; font-size: 15px; font-weight: 800;">
+                <span>➕</span> Create Category
             </button>
         </form>
     </div>
 
-    <div class="card" style="border-radius: 20px;">
-        <div class="card-header" style="background: transparent; border-bottom: 1px solid #f1f5f9; padding: 15px 20px;">
-            <span class="card-title" style="font-weight: 800; font-size: 15px;">📋 Global Categories</span>
+    <!-- Main Content: Category List -->
+    <div class="card">
+        <div class="card-header" style="background: transparent; border-bottom: 1px solid var(--border);">
+            <span class="card-title">📋 Global Categories</span>
         </div>
-        <div class="table-wrap">
+        <div class="table-responsive">
             <table class="cat-table">
                 <thead>
                     <tr>
-                        <th style="width: 60px; text-align: center;">Icon</th>
-                        <th>Details</th>
+                        <th style="width: 80px; text-align: center;">Icon</th>
+                        <th>Category Details</th>
                         <th>Usage</th>
                         <th style="text-align: right;">Status</th>
                     </tr>
@@ -112,31 +148,35 @@
                     {% for cat in categories %}
                     <tr>
                         <td style="text-align: center;">
-                            <div style="font-size: 24px;">{{ cat.get_icon_emoji|default:'📦' }}</div>
-                        </td>
-                        <td>
-                            <div style="font-weight: 800; color: var(--dark); font-size: 13.5px;">{{ cat.name }}</div>
-                            <div style="font-size: 10px; color: var(--muted); display: flex; align-items: center; margin-top: 2px;">
-                                <span style="width: 7px; height: 7px; background: {{ cat.color|default:'#0d7377' }}; border-radius: 50%; display: inline-block; margin-right: 5px;"></span>
-                                {{ cat.color|default:'#0d7377' }}
+                            <div style="font-size: 26px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
+                                {{ cat.get_icon_emoji|default:'📦' }}
                             </div>
                         </td>
                         <td>
-                            <span class="usage-badge">{{ cat.exp_count|default:0 }} items</span>
+                            <div style="font-weight: 900; color: var(--text); font-size: 15px;">{{ cat.name }}</div>
+                            <div style="font-size: 11px; color: var(--muted); display: flex; align-items: center; margin-top: 4px; font-family: 'JetBrains Mono';">
+                                <span class="color-dot" style="background: {{ cat.color|default:'#0d7377' }}; box-shadow: 0 0 0 2px var(--card), 0 0 0 3px {{ cat.color|default:'#0d7377' }}80;"></span>
+                                {{ cat.color|default:'#0d7377'|upper }}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="usage-badge">{{ cat.exp_count|default:0 }} Records</span>
                         </td>
                         <td style="text-align: right;">
                             {% if cat.is_active %}
-                                <span class="badge" style="background: #d1fae5; color: #065f46; font-size: 9px;">Active</span>
+                                <span class="badge badge-success" style="font-size: 10px;">Active</span>
                             {% else %}
-                                <span class="badge" style="background: #fee2e2; color: #991b1b; font-size: 9px;">Off</span>
+                                <span class="badge" style="background: var(--danger-light); color: var(--danger); font-size: 10px;">Disabled</span>
                             {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
                         <td colspan="4">
-                            <div style="text-align: center; padding: 30px; color: var(--muted);">
-                                <p style="font-weight: 700; font-size: 13px;">No categories added.</p>
+                            <div style="text-align: center; padding: 60px 20px;">
+                                <div style="font-size: 40px; margin-bottom: 15px; opacity: 0.3;">📂</div>
+                                <p style="font-weight: 800; color: var(--muted);">No expense categories found.</p>
+                                <p style="font-size: 12px; color: var(--muted); margin-top: 5px;">Use the sidebar to create your first one.</p>
                             </div>
                         </td>
                     </tr>
@@ -151,15 +191,32 @@
 
 {% block extra_js %}
 <script>
+    // Live Icon Preview
     const iconSelect = document.getElementById('id_icon');
     const iconPreview = document.getElementById('iconPreview');
     
-    iconSelect.addEventListener('change', function() {
-        const selectedEmoji = this.options[this.selectedIndex].text;
-        iconPreview.innerText = selectedEmoji.split(' ')[0];
-        
-        iconPreview.style.transform = 'scale(1.1)';
-        setTimeout(() => iconPreview.style.transform = 'scale(1)', 200);
-    });
+    if (iconSelect && iconPreview) {
+        iconSelect.addEventListener('change', function() {
+            const selectedText = this.options[this.selectedIndex].text;
+            // Extract just the emoji part (assuming format like "📦 General")
+            iconPreview.innerText = selectedText.split(' ')[0];
+            
+            // Pop animation
+            iconPreview.style.transform = 'scale(1.2) rotate(-5deg)';
+            setTimeout(() => {
+                iconPreview.style.transform = 'scale(1) rotate(0deg)';
+            }, 250);
+        });
+    }
+
+    // Dynamic Hex Label Update
+    const colorInput = document.querySelector('input[type="color"]');
+    const colorLabel = colorInput?.nextElementSibling;
+    
+    if (colorInput && colorLabel) {
+        colorInput.addEventListener('input', function() {
+            colorLabel.innerText = this.value.toUpperCase();
+        });
+    }
 </script>
 {% endblock %}

@@ -23,7 +23,7 @@
         .sticky-settings { position: sticky; top: 85px; }
     }
 
-    /* ── ATTRACTIVE CUSTOMER CARDS ── */
+    /* ── CUSTOMER CARDS ── */
     .cust-scroll {
         max-height: 600px;
         overflow-y: auto;
@@ -35,7 +35,7 @@
         display: flex;
         align-items: center;
         gap: 16px;
-        background: white;
+        background: var(--card);                /* was: white */
         border: 1px solid var(--border);
         border-radius: 20px;
         padding: 16px 20px;
@@ -46,14 +46,16 @@
     }
 
     .cust-card-premium:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: var(--shadow); }
-    
-    /* Highlight if bill already exists */
-    .cust-card-premium.has-bill { background: #f0fdf4; border-color: #bbf7d0; }
-    
+
+    .cust-card-premium.has-bill {
+        background: var(--success-light);       /* was: #f0fdf4 */
+        border-color: rgba(16,185,129,.35);     /* was: #bbf7d0 */
+    }
+
     .checkbox-wrapper {
         width: 24px; height: 24px;
         border-radius: 8px;
-        border: 2px solid #cbd5e1;
+        border: 2px solid var(--border);        /* was: #cbd5e1 */
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0; transition: 0.2s;
     }
@@ -65,40 +67,72 @@
 
     .cust-avatar {
         width: 45px; height: 45px;
-        background: #f1f5f9;
+        background: var(--primary-pale);        /* was: #f1f5f9 */
         border-radius: 14px;
         display: flex; align-items: center; justify-content: center;
-        font-weight: 800; color: var(--primary);
+        font-weight: 800; color: var(--primary-light);
         font-size: 16px; flex-shrink: 0;
     }
 
     .cust-info { flex: 1; }
-    .cust-info h4 { font-size: 15px; font-weight: 800; color: var(--dark); margin: 0; }
-    .cust-info p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .cust-info h4 { font-size: 15px; font-weight: 800; color: var(--text); margin: 0; }   /* was: var(--dark) */
+    .cust-info p  { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
     .cust-meta { text-align: right; }
-    .cust-meta .qty { font-size: 14px; font-weight: 900; color: var(--primary); }
-    .cust-meta .badge-exists { 
-        display: block; font-size: 9px; font-weight: 800; 
-        background: #d1fae5; color: #065f46; 
+    .cust-meta .qty { font-size: 14px; font-weight: 900; color: var(--primary-light); }
+    .cust-meta .badge-exists {
+        display: block; font-size: 9px; font-weight: 800;
+        background: var(--success-light); color: #065f46;  /* was: #d1fae5 */
         padding: 2px 8px; border-radius: 99px; margin-top: 4px;
     }
 
     /* ── SETTINGS CARD ── */
     .settings-card {
-        background: white; border-radius: 24px; padding: 24px;
-        border: 1px solid var(--border); box-shadow: var(--shadow);
+        background: var(--card);               /* was: white */
+        border-radius: 24px; padding: 24px;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
     }
+
+    /* card-header inside main selection */
+    .card-header-inner {
+        background: var(--table-head-bg);      /* was: #f8fafc */
+        padding: 20px 24px;
+    }
+
+    /* search input inside card */
+    .cust-search-input {
+        height: 48px; border-radius: 12px;
+        background: var(--bg);                 /* was: #f1f5f9 */
+        border: 1.5px solid var(--border);
+        color: var(--text);
+        width: 100%;
+        padding: 0 16px;
+        font-family: inherit; font-size: 14px;
+    }
+    .cust-search-input::placeholder { color: var(--muted); }
+    .cust-search-input:focus { outline: none; border-color: var(--primary); }
+
+    /* form labels */
+    .settings-label { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 8px; display: block; }  /* was: var(--dark) */
+
+    /* pro tip box */
+    .pro-tip-box {
+        background: var(--primary-pale);
+        border-radius: 16px; padding: 16px;
+        border: 1px solid rgba(13,115,119,.2);  /* was: #bfdbfe */
+    }
+    .pro-tip-box .tip-title { font-size: 13px; font-weight: 800; color: var(--primary-light); margin-bottom: 8px; }
+    .pro-tip-box p { font-size: 11px; color: var(--text); line-height: 1.5; margin: 0; }
 
     .btn-generate-hero {
         width: 100%; height: 60px;
         background: linear-gradient(135deg, #0d7377 0%, #14a085 100%);
         color: white; border: none; border-radius: 16px;
         font-size: 16px; font-weight: 800; margin-top: 20px;
-        box-shadow: 0 10px 20px -5px rgba(13, 115, 119, 0.4);
+        box-shadow: 0 10px 20px -5px rgba(13,115,119,.4);
         cursor: pointer; transition: 0.3s;
     }
-
     .btn-generate-hero:hover { filter: brightness(1.1); transform: translateY(-2px); }
 
     /* ── MOBILE OVERRIDES ── */
@@ -106,7 +140,7 @@
         .generate-grid { gap: 15px; }
         .settings-card { border-radius: 20px; padding: 20px; }
         .cust-card-premium { padding: 15px; gap: 12px; }
-        .cust-avatar { display: none; } /* Save space on mobile */
+        .cust-avatar { display: none; }
     }
 </style>
 {% endblock %}
@@ -119,33 +153,32 @@
 
     <div class="main-selection">
         <div class="card" style="border-radius: 24px; overflow: hidden;">
-            <div class="card-header" style="background:#f8fafc; padding: 20px 24px;">
+            <div class="card-header card-header-inner">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <span class="card-title" style="font-size: 16px;">👥 Select Customers</span>
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" onclick="selAll(true)" class="btn btn-secondary btn-sm" style="border-radius: 10px;">✓ All</button>
+                        <button type="button" onclick="selAll(true)"  class="btn btn-secondary btn-sm" style="border-radius: 10px;">✓ All</button>
                         <button type="button" onclick="selAll(false)" class="btn btn-secondary btn-sm" style="border-radius: 10px;">None</button>
                     </div>
                 </div>
             </div>
 
             <div style="padding: 15px 24px; border-bottom: 1px solid var(--border);">
-                <input type="text" id="custSearch" class="form-control" 
-                       placeholder="🔍 Search name, ID or area..." 
-                       oninput="filterCustomers(this.value)"
-                       style="height: 48px; border-radius: 12px; background: #f1f5f9; border: none;">
+                <input type="text" id="custSearch" class="cust-search-input"
+                       placeholder="🔍 Search name, ID or area..."
+                       oninput="filterCustomers(this.value)">
             </div>
 
             <div class="cust-scroll" id="custContainer" style="padding: 15px 24px;">
                 {% for c in customers %}
-                <label class="cust-card-premium {% if c.id in existing_bill_cust_ids %}has-bill{% endif %}" 
+                <label class="cust-card-premium {% if c.id in existing_bill_cust_ids %}has-bill{% endif %}"
                        data-name="{{ c.name|lower }}" data-id="{{ c.customer_id|lower }}">
-                    
-                    <input type="checkbox" name="customers" value="{{ c.id }}" 
+
+                    <input type="checkbox" name="customers" value="{{ c.id }}"
                            {% if c.id not in existing_bill_cust_ids %}checked{% endif %}
                            style="display:none;">
                     <div class="checkbox-wrapper">
-                        <span style="color:white; font-size: 12px;">✓</span>
+                        <span style="color:white; font-size:12px;">✓</span>
                     </div>
 
                     <div class="cust-avatar">{{ c.name|first|upper }}</div>
@@ -171,12 +204,12 @@
 
     <div class="sticky-settings">
         <div class="settings-card">
-            <span style="font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px;">Billing Configuration</span>
-            
+            <span style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:1.2px;">Billing Configuration</span>
+
             <div style="margin-top: 20px;">
                 <div class="form-group" style="margin-bottom: 18px;">
-                    <label style="font-size: 12px; font-weight: 700; color: var(--dark); margin-bottom: 8px; display: block;">Select Month</label>
-                    <select name="month" class="form-control" onchange="updateMonthYear()" id="monthSel" style="height: 50px; border-radius: 12px;">
+                    <label class="settings-label">Select Month</label>
+                    <select name="month" class="form-control" onchange="updateMonthYear()" id="monthSel" style="height:50px; border-radius:12px;">
                         {% for num,name in months %}
                         <option value="{{ num }}" {% if sel_month == num|stringformat:"i" or sel_month == num %}selected{% endif %}>{{ name }}</option>
                         {% endfor %}
@@ -184,24 +217,22 @@
                 </div>
 
                 <div class="form-group" style="margin-bottom: 18px;">
-                    <label style="font-size: 12px; font-weight: 700; color: var(--dark); margin-bottom: 8px; display: block;">Year</label>
-                    <input type="number" name="year" id="yearInp" class="form-control" 
+                    <label class="settings-label">Year</label>
+                    <input type="number" name="year" id="yearInp" class="form-control"
                            value="{{ sel_year }}" min="2025" max="2030" onchange="updateMonthYear()"
-                           style="height: 50px; border-radius: 12px;">
+                           style="height:50px; border-radius:12px;">
                 </div>
 
                 <div class="form-group" style="margin-bottom: 24px;">
-                    <label style="font-size: 12px; font-weight: 700; color: var(--dark); margin-bottom: 8px; display: block;">Discount % (Bulk)</label>
-                    <input type="number" name="discount_pct" class="form-control" step="0.5" value="0" 
-                           style="height: 50px; border-radius: 12px; font-weight: 800; color: var(--primary);">
+                    <label class="settings-label">Discount % (Bulk)</label>
+                    <input type="number" name="discount_pct" class="form-control" step="0.5" value="0"
+                           style="height:50px; border-radius:12px; font-weight:800; color:var(--primary-light);">
                 </div>
             </div>
 
-            <div style="background: var(--primary-pale); border-radius: 16px; padding: 16px; border: 1px solid #bfdbfe;">
-                <div style="font-size: 13px; font-weight: 800; color: var(--primary); margin-bottom: 8px;">💡 Pro Tip</div>
-                <p style="font-size: 11px; color: var(--text); line-height: 1.5; margin: 0;">
-                    Unchecked customers will not be billed. Existing invoices for the same period will be updated with new data.
-                </p>
+            <div class="pro-tip-box">
+                <div class="tip-title">💡 Pro Tip</div>
+                <p>Unchecked customers will not be billed. Existing invoices for the same period will be updated with new data.</p>
             </div>
 
             <button type="submit" class="btn-generate-hero">
@@ -216,18 +247,16 @@
 
 {% block extra_js %}
 <script>
-// Handle row clicks to toggle hidden checkboxes
 document.querySelectorAll('.cust-card-premium').forEach(card => {
     card.addEventListener('click', (e) => {
         const cb = card.querySelector('input[type=checkbox]');
         cb.checked = !cb.checked;
-        // Trigger visual state logic if needed
     });
 });
 
 function selAll(checked) {
     document.querySelectorAll('[name=customers]').forEach(cb => {
-        if(cb.closest('.cust-card-premium').style.display !== 'none') {
+        if (cb.closest('.cust-card-premium').style.display !== 'none') {
             cb.checked = checked;
         }
     });

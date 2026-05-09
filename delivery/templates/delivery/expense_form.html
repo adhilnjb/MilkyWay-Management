@@ -1,75 +1,75 @@
 {% extends 'delivery/base.html' %}
-{% block title %}{{ action }} Expense – Milky Way Pro{% endblock %}
+{% block title %}{{ action }} Expense – Milkyway Pro{% endblock %}
 {% block page_title %}{{ action }} Expense{% endblock %}
 {% block page_sub %}Record business outgoings and farm costs{% endblock %}
 
 {% block topbar_actions %}
-<a href="{% url 'expense_list' %}" class="btn btn-secondary btn-sm">← History</a>
+<a href="{% url 'expense_list' %}" class="btn btn-secondary btn-sm" style="border-radius: 10px;">← History</a>
 {% endblock %}
 
 {% block extra_css %}
 <style>
     /* ── SYSTEM LAYOUT ── */
-    .expense-container { max-width: 1000px; margin: 0 auto; padding-bottom: 50px; }
+    .expense-container { max-width: 900px; margin: 0 auto; padding-bottom: 50px; }
     
     .sec-card {
-        background: white; border-radius: 20px; padding: 24px;
+        background: var(--card); border-radius: 20px; padding: 24px;
         margin-bottom: 24px; border: 1px solid var(--border); box-shadow: var(--shadow);
     }
 
     .sec-header {
-        font-size: 14px; font-weight: 800; color: var(--dark);
-        margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+        font-size: 13px; font-weight: 900; color: var(--muted);
+        margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;
         display: flex; align-items: center; gap: 10px;
     }
 
     /* ── CATEGORY GRID ── */
     .cat-grid { 
         display: grid; 
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); 
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
         gap: 12px; 
     }
     
     .cat-card {
-        background: #f8fafc; border: 2px solid #f1f5f9; border-radius: 16px;
-        padding: 15px 10px; cursor: pointer; text-align: center;
+        background: var(--table-head-bg); border: 2px solid transparent; border-radius: 16px;
+        padding: 18px 10px; cursor: pointer; text-align: center;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     .cat-card:hover { border-color: var(--primary-light); background: white; transform: translateY(-3px); }
     .cat-card.selected { 
-        border-color: var(--primary); background: var(--primary-pale); 
-        box-shadow: 0 8px 15px -5px rgba(13, 115, 119, 0.2);
+        border-color: var(--primary); background: white; 
+        box-shadow: 0 10px 20px -5px rgba(15, 76, 129, 0.15);
     }
 
-    .cat-icon { font-size: 28px; display: block; margin-bottom: 8px; }
-    .cat-name { font-size: 12px; font-weight: 700; color: var(--dark); }
+    .cat-icon { font-size: 32px; display: block; margin-bottom: 8px; }
+    .cat-name { font-size: 11px; font-weight: 800; color: var(--text); text-transform: uppercase; }
 
     /* ── FORM FIELDS GRID ── */
     .expense-form-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 20px;
+        gap: 24px;
     }
 
     .full-width { grid-column: 1 / -1; }
 
     /* ── QUICK AMOUNTS ── */
     .amt-chip {
-        padding: 8px 16px; border-radius: 10px; background: #f1f5f9;
-        color: var(--dark); font-weight: 700; font-size: 13px;
-        border: 1.5px solid transparent; cursor: pointer; transition: 0.2s;
+        padding: 10px 18px; border-radius: 12px; background: var(--table-head-bg);
+        color: var(--text); font-weight: 800; font-size: 13px; font-family: 'JetBrains Mono';
+        border: 2px solid transparent; cursor: pointer; transition: 0.2s;
     }
-    .amt-chip:hover { background: var(--primary-pale); border-color: var(--primary); color: var(--primary); }
+    .amt-chip:hover { border-color: var(--primary); color: var(--primary); background: white; }
 
     /* ── MOBILE OVERRIDES ── */
     @media (max-width: 600px) {
-        .sec-card { padding: 18px; border-radius: 16px; }
+        .sec-card { padding: 20px; border-radius: 16px; }
         .cat-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .cat-icon { font-size: 22px; }
-        .cat-name { font-size: 10px; }
+        .cat-icon { font-size: 24px; }
+        .cat-name { font-size: 9px; }
         .btn-group-mobile { flex-direction: column; }
-        .btn-group-mobile .btn { width: 100%; justify-content: center; }
+        .btn-group-mobile .btn { width: 100%; height: 60px !important; }
     }
 </style>
 {% endblock %}
@@ -79,8 +79,12 @@
 <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
 
+    <!-- Category Selection -->
     <div class="sec-card">
-        <div class="sec-header">🏷️ Expense Category</div>
+        <div class="sec-header">
+            <span style="background: var(--primary-pale); padding: 5px; border-radius: 8px;">🏷️</span>
+            Expense Category
+        </div>
         <input type="hidden" name="category" id="catInput" value="{{ expense.category_id|default:'' }}" required>
         <div class="cat-grid" id="catGrid">
             {% for cat in categories %}
@@ -91,45 +95,51 @@
                 <span class="cat-name">{{ cat.name }}</span>
             </div>
             {% empty %}
-            <p style="color:var(--muted); font-size:13px;">No categories. <a href="{% url 'expense_category_list' %}">Add now →</a></p>
+            <p style="color:var(--muted); font-size:13px; font-weight: 700; padding: 20px; text-align: center; border: 2px dashed var(--border); border-radius: 16px;">
+                No categories found. <a href="{% url 'expense_category_list' %}" style="color: var(--primary);">Add Categories →</a>
+            </p>
             {% endfor %}
         </div>
     </div>
 
+    <!-- Main Details -->
     <div class="sec-card">
-        <div class="sec-header">📝 Expense Details</div>
+        <div class="sec-header">
+            <span style="background: var(--primary-pale); padding: 5px; border-radius: 8px;">📝</span>
+            Transaction Details
+        </div>
         
         <div class="expense-form-grid">
             <div class="form-group full-width">
-                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">PURPOSE / TITLE *</label>
-                <input type="text" name="title" class="form-control" value="{{ expense.title|default:'' }}" 
-                       placeholder="e.g. Monthly Cattle Feed, Electricity..." required>
+                <label style="font-weight: 800; font-size: 11px; color: var(--muted); margin-bottom: 10px; display: block; text-transform: uppercase;">PURPOSE / TITLE *</label>
+                <input type="text" name="title" class="form-control" style="height: 55px; font-weight: 700;" 
+                       value="{{ expense.title|default:'' }}" placeholder="e.g. 50kg Cattle Feed, Vehicle Fuel..." required>
             </div>
 
             <div class="form-group">
-                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">AMOUNT (RS.) *</label>
-                <input type="number" name="amount" id="amtField" class="form-control font-mono" step="0.01" 
+                <label style="font-weight: 800; font-size: 11px; color: var(--muted); margin-bottom: 10px; display: block; text-transform: uppercase;">AMOUNT (INR) *</label>
+                <input type="number" name="amount" id="amtField" class="form-control" step="0.01" 
                        value="{{ expense.amount|default:'' }}" required 
-                       style="font-size: 20px; font-weight: 800; color: var(--danger); border-color: var(--danger-light);">
+                       style="height: 55px; font-size: 24px; font-weight: 900; color: #e11d48; border-color: #fecdd3; font-family: 'JetBrains Mono';">
                 
-                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px;">
-                    <span class="amt-chip" onclick="setAmt(100)">100</span>
-                    <span class="amt-chip" onclick="setAmt(500)">500</span>
-                    <span class="amt-chip" onclick="setAmt(1000)">1k</span>
-                    <span class="amt-chip" onclick="setAmt(2000)">2k</span>
-                    <span class="amt-chip" onclick="setAmt(5000)">5k</span>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 15px;">
+                    <span class="amt-chip" onclick="setAmt(100)">₹100</span>
+                    <span class="amt-chip" onclick="setAmt(500)">₹500</span>
+                    <span class="amt-chip" onclick="setAmt(1000)">₹1k</span>
+                    <span class="amt-chip" onclick="setAmt(2000)">₹2k</span>
+                    <span class="amt-chip" onclick="setAmt(5000)">₹5k</span>
                 </div>
             </div>
 
             <div class="form-group">
-                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">DATE *</label>
-                <input type="date" name="date" class="form-control" 
+                <label style="font-weight: 800; font-size: 11px; color: var(--muted); margin-bottom: 10px; display: block; text-transform: uppercase;">DATE *</label>
+                <input type="date" name="date" class="form-control" style="height: 55px; font-weight: 700;"
                        value="{{ expense.date|date:'Y-m-d'|default:today|date:'Y-m-d' }}" required>
             </div>
 
             <div class="form-group">
-                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">PAYMENT METHOD</label>
-                <select name="payment_mode" class="form-control" style="font-weight: 700;">
+                <label style="font-weight: 800; font-size: 11px; color: var(--muted); margin-bottom: 10px; display: block; text-transform: uppercase;">PAYMENT METHOD</label>
+                <select name="payment_mode" class="form-control" style="height: 55px; font-weight: 800;">
                     {% for val,lbl in pay_choices %}
                     <option value="{{ val }}" {% if expense.payment_mode == val %}selected{% endif %}>{{ lbl }}</option>
                     {% endfor %}
@@ -137,36 +147,49 @@
             </div>
 
             <div class="form-group">
-                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">VENDOR / SUPPLIER</label>
-                <input type="text" name="vendor" class="form-control" value="{{ expense.vendor|default:'' }}" placeholder="Optional">
+                <label style="font-weight: 800; font-size: 11px; color: var(--muted); margin-bottom: 10px; display: block; text-transform: uppercase;">VENDOR / SUPPLIER</label>
+                <input type="text" name="vendor" class="form-control" style="height: 55px; font-weight: 700;" 
+                       value="{{ expense.vendor|default:'' }}" placeholder="Optional">
             </div>
 
             <div class="form-group full-width">
-                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">ATTACH RECEIPT (IMAGE)</label>
-                <input type="file" name="receipt" class="form-control" accept="image/*" style="padding: 8px;">
-                {% if expense.receipt %}<small class="text-success">Current: {{ expense.receipt.name|truncatechars:30 }}</small>{% endif %}
+                <label style="font-weight: 800; font-size: 11px; color: var(--muted); margin-bottom: 10px; display: block; text-transform: uppercase;">ATTACH RECEIPT (IMAGE)</label>
+                <div style="position: relative;">
+                    <input type="file" name="receipt" class="form-control" accept="image/*" 
+                           style="padding: 12px; height: auto; border: 2px dashed var(--border); background: var(--table-head-bg);">
+                </div>
+                {% if expense.receipt %}
+                    <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 14px;">📄</span>
+                        <small style="font-weight: 700; color: var(--primary);">Currently: {{ expense.receipt.name|truncatechars:20 }}</small>
+                    </div>
+                {% endif %}
             </div>
 
             <div class="form-group full-width">
-                <label style="font-weight: 700; font-size: 13px; color: var(--muted); margin-bottom: 8px; display: block;">NOTES</label>
-                <textarea name="description" class="form-control" rows="2" placeholder="Any specific details...">{{ expense.description|default:'' }}</textarea>
+                <label style="font-weight: 800; font-size: 11px; color: var(--muted); margin-bottom: 10px; display: block; text-transform: uppercase;">NOTES</label>
+                <textarea name="description" class="form-control" rows="3" style="padding: 15px; font-weight: 600;"
+                          placeholder="Add any specific details about this purchase...">{{ expense.description|default:'' }}</textarea>
             </div>
         </div>
 
-        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #f1f5f9;">
-            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; color: var(--dark);">
+        <div style="margin-top: 25px; padding-top: 25px; border-top: 1px solid var(--border);">
+            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-weight: 800; color: var(--text);">
                 <input type="checkbox" name="is_recurring" {% if expense.is_recurring %}checked{% endif %} 
-                       style="width: 20px; height: 20px; accent-color: var(--primary);">
-                <span>🔁 Mark as recurring monthly expense</span>
+                       style="width: 22px; height: 22px; accent-color: var(--primary); border-radius: 6px;">
+                <span>🔁 Recurring monthly expense</span>
             </label>
         </div>
     </div>
 
+    <!-- Action Buttons -->
     <div class="btn-group-mobile" style="display: flex; gap: 15px;">
-        <button type="submit" class="btn btn-primary btn-lg" style="flex: 2; height: 55px; font-size: 16px; box-shadow: 0 10px 20px -5px rgba(13, 115, 119, 0.4);">
-            {% if action == 'Add' %}➕ Record Expense{% else %}💾 Save Changes{% endif %}
+        <button type="submit" class="btn btn-primary btn-lg" style="flex: 2; height: 60px; font-size: 16px; font-weight: 900; box-shadow: 0 10px 20px -5px rgba(15, 76, 129, 0.3);">
+            {% if action == 'Add' %}➕ Record Transaction{% else %}💾 Save Changes{% endif %}
         </button>
-        <a href="{% url 'expense_list' %}" class="btn btn-secondary btn-lg" style="flex: 1; height: 55px; justify-content: center;">Cancel</a>
+        <a href="{% url 'expense_list' %}" class="btn btn-secondary btn-lg" style="flex: 1; height: 60px; font-weight: 800; justify-content: center; background: white; border: 1.5px solid var(--border);">
+            Cancel
+        </a>
     </div>
 </form>
 </div>
@@ -175,17 +198,26 @@
 {% block extra_js %}
 <script>
     function selectCat(id, card) {
-        document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('selected'));
+        document.querySelectorAll('.cat-card').forEach(c => {
+            c.classList.remove('selected');
+            c.style.transform = 'scale(1)';
+        });
         card.classList.add('selected');
+        card.style.transform = 'scale(1.05)';
         document.getElementById('catInput').value = id;
     }
     
     function setAmt(v) {
         const field = document.getElementById('amtField');
         field.value = v;
-        // Visual feedback
-        field.style.transform = 'scale(1.02)';
-        setTimeout(() => field.style.transform = 'scale(1)', 150);
+        // Animation for feedback
+        field.style.transition = '0.2s';
+        field.style.transform = 'translateY(-2px)';
+        field.style.boxShadow = '0 5px 15px rgba(225, 29, 72, 0.1)';
+        setTimeout(() => {
+            field.style.transform = 'translateY(0)';
+            field.style.boxShadow = 'none';
+        }, 200);
     }
 </script>
 {% endblock %}

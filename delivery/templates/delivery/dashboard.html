@@ -69,6 +69,14 @@
         height: 280px;
         width: 100%;
     }
+    /* Desktop vs Mobile adjustments */
+    @media (max-width: 600px) {
+        .hide-mobile { display: none !important; }
+        .show-mobile-block { display: block !important; }
+        .mobile-text-sm { font-size: 11px !important; }
+        .table-wrap table { min-width: 100% !important; } /* Prevents unnecessary horizontal scroll */
+        .card-header { padding: 12px 15px !important; }
+    }
 </style>
 {% endblock %}
 
@@ -124,79 +132,103 @@
 </div>
 
 <div class="dashboard-equal-row">
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">💸 Month Expenses</span>
-      <a href="{% url 'expense_list' %}" class="btn btn-secondary btn-sm">View All</a>
+ <div class="card" style="border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; background: var(--card-bg); border: 1px solid var(--border);">
+    <div class="card-header" style="padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; background: transparent; border-bottom: 1px solid var(--border);">
+        <span class="card-title" style="font-size: 15px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+            <span>💸</span> Month Expenses
+        </span>
+        <a href="{% url 'expense_list' %}" class="btn btn-secondary btn-sm" style="padding: 6px 12px; font-size: 11px; background: var(--bg-alt); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px;">View All</a>
     </div>
+    
     <div class="card-body" style="padding: 10px 20px;">
-      {% if exp_by_cat %}
-        {% for e in exp_by_cat|slice:":5" %}
-        <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f1f5f9;">
-          <div style="font-size:22px; width:35px; text-align:center;">{{ e.category__icon|default:'🌿' }}</div>
-          <div style="flex:1;">
-            <div style="font-size:13px; font-weight:800; color:var(--dark);">{{ e.category__name|default:'Other' }}</div>
-            <div style="background:#f1f5f9; border-radius:99px; height:5px; margin-top:6px; overflow:hidden;">
-              <div style="background:var(--danger); height:5px; width:{% widthratio e.total month_expenses 100 %}%;"></div>
+        {% if exp_by_cat %}
+            {% for e in exp_by_cat|slice:":5" %}
+            <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border);">
+                <!-- Icon remains centered and fixed width -->
+                <div style="font-size: 22px; width: 35px; text-align: center;">{{ e.category__icon|default:'🌿' }}</div>
+                
+                <div style="flex: 1; min-width: 0;"> <!-- min-width: 0 prevents text overflow -->
+                    <div style="font-size: 13px; font-weight: 800; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {{ e.category__name|default:'Other' }}
+                    </div>
+                    
+                    <!-- Progress Bar Container -->
+                    <div style="background: var(--bg-alt); border-radius: 99px; height: 6px; margin-top: 6px; overflow: hidden;">
+                        <div style="background: var(--danger); height: 100%; width: {% widthratio e.total month_expenses 100 %}%; border-radius: 99px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Price Tag -->
+                <span class="font-mono" style="font-weight: 900; color: var(--danger); font-size: 13px; margin-left: 8px;">
+                    <span style="font-size: 10px;">Rs.</span>{{ e.total|floatformat:0 }}
+                </span>
             </div>
-          </div>
-          <span class="font-mono" style="font-weight:900; color:var(--danger); font-size:13px;">Rs.{{ e.total|floatformat:0 }}</span>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div style="text-align:center; padding:30px; color:var(--muted);">No expenses.</div>
-      {% endif %}
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 13px;">
+                <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.5;">📒</div>
+                No expenses recorded this month.
+            </div>
+        {% endif %}
     </div>
-  </div>
+</div>
 
   
 
-<div class="card" style="border-radius: var(--radius); overflow: hidden; margin-bottom: 24px;">
-    <div class="card-header" style="padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; background: transparent; border-bottom: 1px solid #f1f5f9;">
-        <span class="card-title" style="font-size: 15px; font-weight: 800; color: var(--dark); display: flex; align-items: center; gap: 8px;">
-            <span>🚚</span> Recent Distribution Log
+
+
+   <div class="card" style="border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; background: var(--card-bg); border: 1px solid var(--border);">
+    <div class="card-header" style="padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; background: transparent; border-bottom: 1px solid var(--border);">
+        <span class="card-title" style="font-size: 15px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+            <span>🚚</span> Recent Distribution
         </span>
-        <a href="{% url 'delivery_list' %}" class="btn btn-secondary btn-sm" style="padding: 6px 12px; font-size: 11px;">View Full History</a>
+        <a href="{% url 'delivery_list' %}" class="btn btn-secondary btn-sm" style="padding: 6px 12px; font-size: 11px; background: var(--bg-alt); color: var(--text-main); border: 1px solid var(--border); border-radius: 8px;">History</a>
     </div>
 
     <div class="table-wrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-        <table style="width: 100%; border-collapse: collapse; min-width: 550px;">
+        <table style="width: 100%; border-collapse: collapse; min-width: 500px;">
             <thead>
-                <tr style="background: #f8fafc;">
-                    <th style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Customer</th>
-                    <th style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Date</th>
-                    <th style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Quantity</th>
-                    <th style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Collection</th>
-                    <th style="padding: 14px 20px; text-align: right; font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;">Status</th>
+                <tr style="background: var(--bg-alt);">
+                    <th style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Customer</th>
+                    <!-- Hidden on Mobile -->
+                    <th class="hide-mobile" style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Date</th>
+                    <th style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Qty</th>
+                    <!-- Hidden on Mobile -->
+                    <th class="hide-mobile" style="padding: 14px 20px; text-align: left; font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Collection</th>
+                    <th style="padding: 14px 20px; text-align: right; font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Status</th>
                 </tr>
             </thead>
             <tbody>
                 {% for d in recent_deliveries|slice:":10"|dictsort:"date" reversed %}
-                <tr style="border-bottom: 1px solid #f1f5f9; transition: 0.2s;" onmouseover="this.style.background='#fbfcfe'" onmouseout="this.style.background='transparent'">
+                <tr style="border-bottom: 1px solid var(--border); transition: 0.2s;" onmouseover="this.style.background='var(--bg-alt)'" onmouseout="this.style.background='transparent'">
                     <td style="padding: 15px 20px;">
-                        <div style="font-weight: 800; color: var(--dark); font-size: 14px;">{{ d.customer.name }}</div>
+                        <div style="font-weight: 800; color: var(--text-main); font-size: 14px;">{{ d.customer.name }}</div>
+                        <!-- Shown only on Mobile to save space -->
+                        <div class="show-mobile-block" style="display: none; font-size: 10px; color: var(--text-muted); margin-top: 2px;">
+                            {{ d.date|date:"d M" }} • Rs.{{ d.amount|floatformat:0 }}
+                        </div>
+                    </td>
+                    <td class="hide-mobile" style="padding: 15px 20px;">
+                        <div style="font-size: 12px; font-weight: 600; color: var(--text-muted);">{{ d.date|date:"d M, Y" }}</div>
                     </td>
                     <td style="padding: 15px 20px;">
-                        <div style="font-size: 12px; font-weight: 600; color: var(--muted);">{{ d.date|date:"d M, Y" }}</div>
+                        <div class="font-mono" style="font-weight: 700; font-size: 13px; color: var(--text-main);">{{ d.quantity }}L</div>
                     </td>
-                    <td style="padding: 15px 20px;">
-                        <div class="font-mono" style="font-weight: 700; font-size: 13px; color: var(--dark);">{{ d.quantity }}L</div>
-                    </td>
-                    <td style="padding: 15px 20px;">
+                    <td class="hide-mobile" style="padding: 15px 20px;">
                         <div class="font-mono" style="font-weight: 800; color: var(--primary); font-size: 13px;">Rs.{{ d.amount|floatformat:0 }}</div>
                     </td>
                     <td style="padding: 15px 20px; text-align: right;">
                         {% if d.is_delivered %}
-                            <span class="badge" style="background:#d1fae5; color:#065f46; font-size: 10px; padding: 5px 12px; border-radius: 8px;">Delivered</span>
+                            <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 9px; padding: 4px 10px; border-radius: 6px; font-weight: 900; text-transform: uppercase;">OK</span>
                         {% else %}
-                            <span class="badge" style="background:#fee2e2; color:#991b1b; font-size: 10px; padding: 5px 12px; border-radius: 8px;">Missed</span>
+                            <span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; font-size: 9px; padding: 4px 10px; border-radius: 6px; font-weight: 900; text-transform: uppercase;">N/A</span>
                         {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" style="padding: 40px; text-align: center; color: var(--muted); font-size: 13px;">
-                        No delivery logs recorded yet.
+                    <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                        No logs recorded.
                     </td>
                 </tr>
                 {% endfor %}
