@@ -4,9 +4,11 @@ import dj_database_url
 load_dotenv()
 import os
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-milkdairy-secret-key-change-in-production-2024'
+
 
 DEBUG = True
 
@@ -65,8 +67,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok.io',
     'https://*.vercel.app'
 ]
-application = "get_wsgi_application()"
-app = application
+WSGI_APPLICATION = "get_wsgi_application()"
 
 
 DATABASES = {
