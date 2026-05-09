@@ -17,7 +17,8 @@ ALLOWED_HOSTS = [
     '.onrender.com',      # <--- Add this for Render
     '.ngrok-free.app', 
     '.ngrok-free.dev',
-    '.ngrok.io'
+    '.ngrok.io',
+    '.vercel.app',
 ]
 
 INSTALLED_APPS = [
@@ -61,9 +62,11 @@ TEMPLATES = [
 CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok-free.app', 
     'https://*.ngrok-free.dev', 
-    'https://*.ngrok.io'
+    'https://*.ngrok.io',
+    'https://*.vercel.app'
 ]
-WSGI_APPLICATION = 'milkdairy.wsgi.application'
+WSGI_APPLICATION = "get_wsgi_application()"
+
 
 DATABASES = {
     'default': dj_database_url.config(
