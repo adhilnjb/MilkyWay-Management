@@ -12,9 +12,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-milkdairy-secret-key-change-in-production-2024')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-# Automatically sets to False on Vercel production for security
-DEBUG = True if 'VERCEL' not in os.environ else False
+# TEMPORARILY FORCED TO TRUE TO REVEAL THE 500 SERVER ERROR DETAILS ON VERCEL
+DEBUG = True
 
 ALLOWED_HOSTS = [
     'localhost', 
@@ -39,7 +38,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # For efficient static file serving
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serves static files on serverless Vercel
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -70,35 +69,37 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok-free.app', 
     'https://*.ngrok-free.dev', 
     'https://*.ngrok.io',
-    'https://*.vercel.app'  # Allows CSRF validation on Vercel
+    'https://*.vercel.app'  # Allows login forms to process on Vercel safely
 ]
 
 WSGI_APPLICATION = 'milkdairy.wsgi.application'
 
 
 # ==============================================================================
-# DATABASE CONFIGURATION (VERCEL vs LOCAL)
+# DATABASE CONFIGURATION (NEON CLOUD VS LOCAL POSTGRES)
 # ==============================================================================
 
-# 1. Default configuration reads from Vercel's Environment Variables (Neon Postgres)
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600,
-        ssl_require=True,
-        conn_health_checks=True,
-    )
-}
-
-# 2. Smart Fallback: If NOT on Vercel AND no DATABASE_URL exists, use local machine database
-if 'VERCEL' not in os.environ and not os.environ.get('DATABASE_URL'):
-    DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'MilkyWayDB',
-        'USER': 'postgres',
-        'PASSWORD': 'Adhil@2026',  # Your local computer password
-        'HOST': 'localhost',
-        'PORT': '5432',
+if 'VERCEL' in os.environ:
+    # Strictly force Vercel platform to build using your Neon DATABASE_URL variable
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.environ.get('DATABASE_URL'),
+            conn_max_age=600,
+            ssl_require=True,
+            conn_health_checks=True,
+        )
+    }
+else:
+    # Local fallback for coding on your computer at home/college
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'MilkyWayDB',
+            'USER': 'postgres',
+            'PASSWORD': 'Adhil@2026',  
+            'HOST': 'localhost',
+            'PORT': '5432',
+        }
     }
 
 
@@ -123,7 +124,7 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# WhiteNoise storage configuration for compression & caching support
+# WhiteNoise production asset compression
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
