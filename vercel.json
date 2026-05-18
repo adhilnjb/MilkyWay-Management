@@ -1,14 +1,15 @@
 {
+  "version": 2,
   "builds": [
     {
-      "src": "project_name/wsgi.py",
+      "src": "milkdairy/wsgi.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "project_name/wsgi.py"
+      "dest": "milkdairy/wsgi.py"
     }
   ]
 }
