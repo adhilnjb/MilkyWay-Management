@@ -3,10 +3,15 @@
   "builds": [
     {
       "src": "milkdairy/wsgi.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": { "maxDuration": 30 }
     }
   ],
   "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "static/$1"
+    },
     {
       "src": "/(.*)",
       "dest": "milkdairy/wsgi.py"
