@@ -91,27 +91,16 @@ DATABASES = {
 }
 
 # 2. Smart Fallback: If NOT on Vercel AND no DATABASE_URL exists, use local machine database
-if 'VERCEL' in os.environ:
-    # Force Vercel to use ONLY Neon Cloud Database
-    DATABASES = {
-        'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
+if 'VERCEL' not in os.environ and not os.environ.get('DATABASE_URL'):
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'MilkyWayDB',
+        'USER': 'postgres',
+        'PASSWORD': 'Adhil@2026',  # Your local computer password
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
-    DATABASES['default']['CONN_MAX_AGE'] = 600
-    DATABASES['default']['OPTIONS'] = {
-        'sslmode': 'require',
-    }
-else:
-    # Local fallback ONLY for your offline computer
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'MilkyWayDB',
-            'USER': 'postgres',
-            'PASSWORD': 'Adhil@2026',
-            'HOST': 'localhost',
-            'PORT': '5432',
-        }
-    }
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
