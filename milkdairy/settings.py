@@ -80,15 +80,21 @@ WSGI_APPLICATION = 'milkdairy.wsgi.application'
 # ==============================================================================
 
 if 'VERCEL' in os.environ:
-    # Strictly force Vercel platform to build using your Neon DATABASE_URL variable
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=os.environ.get('DATABASE_URL'),
-            conn_max_age=600,
-            ssl_require=True,
-            conn_health_checks=True,
-        )
-    }
+    # Get the raw string from Vercel environment variables
+    db_url = os.environ.get('DATABASE_URL')
+    
+    if db_url:
+        DATABASES = {
+            'default': dj_database_url.parse(db_url)
+        }
+        # Required optimizations for Neon serverless architecture
+        DATABASES['default']['CONN_MAX_AGE'] = 600
+        DATABASES['default']['OPTIONS'] = {
+            'sslmode': 'require',
+        }
+    else:
+        # Crucial fallback: If variable is missing, this stops the dummy engine crash
+        raise ValueError("CRITICAL ERROR: DATABASE_URL environment variable is completely missing or empty in Vercel dashboard!")
 else:
     # Local fallback for coding on your computer at home/college
     DATABASES = {
@@ -101,7 +107,6 @@ else:
             'PORT': '5432',
         }
     }
-
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
