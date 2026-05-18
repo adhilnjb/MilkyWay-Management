@@ -1,28 +1,32 @@
+import os
 from pathlib import Path
 from dotenv import load_dotenv
 import dj_database_url
+
+# Load environment variables from .env file for local development
 load_dotenv()
-import os
 
-
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-milkdairy-secret-key-change-in-production-2024'
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-milkdairy-secret-key-change-in-production-2024')
 
+# SECURITY WARNING: don't run with debug turned on in production!
+# Automatically sets to False on Vercel production for security
+DEBUG = True if 'VERCEL' not in os.environ else False
 
-DEBUG = True
-
-# settings.py
 ALLOWED_HOSTS = [
     'localhost', 
     '127.0.0.1', 
-    '.onrender.com',      # <--- Add this for Render
+    '.onrender.com',      
     '.ngrok-free.app', 
     '.ngrok-free.dev',
     '.ngrok.io',
-    '.vercel.app',
+    '.vercel.app',        # Allows Vercel domains
 ]
 
+# Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -35,7 +39,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # For efficient static file serving
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -61,15 +65,22 @@ TEMPLATES = [
         },
     },
 ]
+
 CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok-free.app', 
     'https://*.ngrok-free.dev', 
     'https://*.ngrok.io',
-    'https://*.vercel.app'
+    'https://*.vercel.app'  # Allows CSRF validation on Vercel
 ]
-WSGI_APPLICATION = "get_wsgi_application()"
+
+WSGI_APPLICATION = 'milkdairy.wsgi.application'
 
 
+# ==============================================================================
+# DATABASE CONFIGURATION (VERCEL vs LOCAL)
+# ==============================================================================
+
+# 1. Default configuration reads from Vercel's Environment Variables (Neon Postgres)
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
@@ -79,17 +90,19 @@ DATABASES = {
     )
 }
 
-# Fallback for local development at Arafa College / Home
-if not os.environ.get('DATABASE_URL'):
+# 2. Smart Fallback: If NOT on Vercel AND no DATABASE_URL exists, use local machine database
+if 'VERCEL' not in os.environ and not os.environ.get('DATABASE_URL'):
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'MilkyWayDB',
         'USER': 'postgres',
-        'PASSWORD': 'Adhil@2026', # Your local password
+        'PASSWORD': 'Adhil@2026',  # Your local computer password
         'HOST': 'localhost',
         'PORT': '5432',
     }
 
+
+# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -97,20 +110,30 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+
+# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
+
+# Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# WhiteNoise storage configuration for compression & caching support
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+
+# Media files configuration
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Authentication URLs
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
