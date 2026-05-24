@@ -1,3 +1,4 @@
+import io, datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
@@ -7,6 +8,18 @@ from django.db.models import Sum, Count, Q, Prefetch, Avg
 from django.core.paginator import Paginator
 from decimal import Decimal, ROUND_HALF_UP
 import datetime, json, calendar, io, urllib.parse
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import (
+    SimpleDocTemplate, Table, TableStyle,
+    Paragraph, Spacer, HRFlowable, KeepTogether,
+)
+from reportlab.platypus.flowables import Flowable
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from .models import Bill, DailyDelivery, Payment
 
 from .models import (Customer, CustomerSubscription, DailyDelivery,
                      Bill, Payment, MilkProduct, Notification,
@@ -461,7 +474,7 @@ def delivery_bulk_update(request):
 
     messages.success(request,
         f"Updated {updated_count} items for {sel_date.strftime('%d %b %Y')}. "
-        f"Total: {day_stats['q'] or 0:.1f}L | Revenue: ₹{day_stats['r'] or 0:,.2f}"
+        f"Total: {day_stats['q'] or 0:.1f}L | Revenue: 💸{day_stats['r'] or 0:,.2f}"
     )
     return redirect(f"/delivery/?date={date_str}")
 
@@ -925,7 +938,7 @@ def bill_edit(request, pk):
                       'paid' if paid >= bill.grand_total else
                       'partial' if paid > 0 else 'unpaid')
         Bill.objects.filter(pk=bill.pk).update(status=new_status, grand_total=bill.grand_total)
-        messages.success(request, f'Bill #{bill.bill_number} updated. Total: ₹{bill.grand_total:.2f}')
+        messages.success(request, f'Bill #{bill.bill_number} updated. Total: 💸{bill.grand_total:.2f}')
         return redirect('bill_detail', pk=pk)
     return render(request, 'delivery/bill_edit.html', {'bill': bill})
 
@@ -965,123 +978,348 @@ def bill_mark_paid(request, pk):
         paid = bill.payment_set.aggregate(t=Sum('amount'))['t'] or Decimal('0')
         Bill.objects.filter(pk=bill.pk).update(
             status='paid' if paid >= bill.grand_total else 'partial')
-        messages.success(request, f'Payment ₹{amt} recorded for Bill #{bill.bill_number}')
+        messages.success(request, f'Payment 💸{amt} recorded for Bill #{bill.bill_number}')
     return redirect('bill_detail', pk=pk)
 
 
+def _register_fonts():
+    try:
+        pdfmetrics.registerFont(TTFont('Poppins',         '/usr/share/fonts/truetype/google-fonts/Poppins-Regular.ttf'))
+        pdfmetrics.registerFont(TTFont('Poppins-Bold',    '/usr/share/fonts/truetype/google-fonts/Poppins-Bold.ttf'))
+        pdfmetrics.registerFont(TTFont('Poppins-Medium',  '/usr/share/fonts/truetype/google-fonts/Poppins-Medium.ttf'))
+        pdfmetrics.registerFont(TTFont('Poppins-Light',   '/usr/share/fonts/truetype/google-fonts/Poppins-Light.ttf'))
+        pdfmetrics.registerFont(TTFont('DejaVu',          '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+        pdfmetrics.registerFont(TTFont('DejaVu-Bold',     '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'))
+        pdfmetrics.registerFont(TTFont('DejaVuMono',      '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'))
+        pdfmetrics.registerFont(TTFont('DejaVuMono-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf'))
+        return True
+    except Exception:
+        return False   # fall back to Helvetica gracefully
+ 
+_FONTS_OK = _register_fonts()
+ 
+ 
+def _pf(poppins_name, fallback_name):
+    return poppins_name if _FONTS_OK else fallback_name
+ 
+ 
+# ── Colour Palette — warm cream + deep teal dairy theme ───────────────────────
+C_CREAM      = colors.HexColor('#FFFBF2')
+C_TEAL_DARK  = colors.HexColor('#0F4C5C')
+C_TEAL       = colors.HexColor("#0180B1")
+C_TEAL_LIGHT = colors.HexColor('#E8F5F7')
+C_GOLD       = colors.HexColor('#D4A017')
+C_GOLD_LIGHT = colors.HexColor('#FFF8E7')
+C_WHITE      = colors.HexColor('#FFFFFF')
+C_TEXT       = colors.HexColor('#1C2B2D')
+C_TEXT_MED   = colors.HexColor('#3D5A5E')
+C_MUTED      = colors.HexColor('#7A9EA3')
+C_BORDER     = colors.HexColor('#C8DDE0')
+C_STRIPE     = colors.HexColor('#F4FAFB')
+C_GREEN      = colors.HexColor('#1A7A4A')
+C_ORANGE     = colors.HexColor('#C45900')
+C_ORANGE_BG  = colors.HexColor('#FFF3EA')
+ 
+ 
+class MilkDivider(Flowable):
+    """Decorative divider with a small circle in the centre."""
+    def __init__(self, width, color=C_BORDER):
+        super().__init__()
+        self.width = width
+        self.height = 10
+        self._color = color
+ 
+    def draw(self):
+        c = self.canv
+        mid = self.width / 2
+        c.setStrokeColor(self._color)
+        c.setFillColor(self._color)
+        c.setLineWidth(0.5)
+        c.line(0, 4, mid - 18, 4)
+        c.line(mid + 18, 4, self.width, 4)
+        c.circle(mid, 4, 5, fill=1, stroke=0)
+        c.setFillColor(C_CREAM)
+        c.circle(mid, 4, 2.5, fill=1, stroke=0)
+ 
+ 
+def _s(name, font='Poppins', size=9, color=C_TEXT, bold=False,
+        align=0, leading=None, space_after=0):
+    fn = _pf(font + ('-Bold' if bold else ''), 'Helvetica' + ('-Bold' if bold else ''))
+    ss = getSampleStyleSheet()
+    return ParagraphStyle(name, parent=ss['Normal'],
+                          fontName=fn, fontSize=size, textColor=color,
+                          alignment=align, leading=leading or size * 1.4,
+                          spaceAfter=space_after)
+ 
+ 
+def _draw_bg(canvas_obj, doc):
+    canvas_obj.saveState()
+    canvas_obj.setFillColor(C_CREAM)
+    canvas_obj.rect(0, 0, A4[0], A4[1], fill=1, stroke=0)
+    canvas_obj.setFillColor(colors.HexColor('#DCF0F4'))
+    canvas_obj.rect(0, 0, 0.3 * cm, A4[1], fill=1, stroke=0)
+    canvas_obj.rect(A4[0] - 0.3 * cm, 0, 0.3 * cm, A4[1], fill=1, stroke=0)
+    canvas_obj.restoreState()
+ 
+ 
 @login_required
 def bill_pdf(request, pk):
-    bill       = get_object_or_404(Bill, pk=pk)
+    bill = get_object_or_404(Bill, pk=pk)
+ 
+    # ── BUG FIX: recalculate live from actual delivery records ────────────────
     deliveries = DailyDelivery.objects.filter(
-        customer=bill.customer, date__gte=bill.from_date,
-        date__lte=bill.to_date, is_delivered=True
+        customer=bill.customer,
+        date__gte=bill.from_date,
+        date__lte=bill.to_date,
+        is_delivered=True,
     ).order_by('date').select_related('product')
-    payments   = Payment.objects.filter(bill=bill)
-    amount_paid = payments.aggregate(t=Sum('amount'))['t'] or Decimal('0')
-    amount_due  = max(Decimal('0'), bill.grand_total - amount_paid)
-
+ 
+    stats = deliveries.aggregate(actual_qty=Sum('quantity'), actual_amt=Sum('amount'))
+    actual_total = stats['actual_amt'] or Decimal('0')
+    net_amount   = actual_total - bill.discount
+    grand_total  = net_amount + bill.previous_balance
+ 
+    # Sync stale bill record back to DB
+    if bill.grand_total != grand_total or bill.total_amount != actual_total:
+        Bill.objects.filter(pk=bill.pk).update(
+            total_amount=actual_total,
+            total_quantity=stats['actual_qty'] or Decimal('0'),
+            grand_total=grand_total,
+        )
+        bill.total_amount = actual_total
+        bill.grand_total  = grand_total
+ 
+    amount_paid = (Payment.objects.filter(bill=bill)
+                   .aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+    amount_due  = max(Decimal('0'), grand_total - amount_paid)
+ 
     try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib import colors
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import cm
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-
-        buf       = io.BytesIO()
-        doc       = SimpleDocTemplate(buf, pagesize=A4, margin=1*cm)
-        ss        = getSampleStyleSheet()
-        brand_navy = colors.HexColor('#0f172a')
-        brand_soft = colors.HexColor('#f8fafc')
-        accent_grn = colors.HexColor('#10b981')
-
-        title_s  = ParagraphStyle('T',   parent=ss['Normal'], textColor=colors.white,  fontSize=22, fontName='Helvetica-Bold', leading=26)
-        period_s = ParagraphStyle('P',   parent=ss['Normal'], textColor=colors.white,  fontSize=10, fontName='Helvetica-Bold', leading=14)
-        tagline_s= ParagraphStyle('Tag', parent=ss['Normal'], textColor=colors.white,  fontSize=9,  leading=12)
-        label_s  = ParagraphStyle('L',   parent=ss['Normal'], textColor=colors.HexColor('#64748b'), fontSize=7, fontName='Helvetica-Bold')
-        norm_s   = ParagraphStyle('N',   parent=ss['Normal'], textColor=brand_navy,    fontSize=9,  leading=13)
-        f_label  = ParagraphStyle('FL',  parent=ss['Normal'], textColor=colors.white,  fontSize=8,  fontName='Helvetica-Bold', alignment=1)
-        f_val    = ParagraphStyle('FV',  parent=ss['Normal'], textColor=colors.white,  fontSize=16, fontName='Helvetica-Bold', alignment=1)
-
+        PAGE_W, PAGE_H = A4
+        MARGIN    = 1.2 * cm
+        CONTENT_W = PAGE_W - 2 * MARGIN
+ 
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buf, pagesize=A4,
+            leftMargin=MARGIN, rightMargin=MARGIN,
+            topMargin=1.0 * cm, bottomMargin=1.0 * cm,
+        )
+ 
+        # ── Styles ────────────────────────────────────────────────────────────
+        sty = {
+            'brand'      : _s('brand',      'Poppins', 22, C_WHITE,     bold=True,  leading=26),
+            'brand_tag'  : _s('brand_tag',  'Poppins',  8, C_TEAL_LIGHT,             leading=12),
+            'inv_tag'    : _s('inv_tag',    'Poppins',  7, C_TEAL_LIGHT, align=2,   leading=10),
+            'inv_no'     : _s('inv_no',     'Poppins', 18, C_WHITE,     bold=True,  leading=22, align=2),
+            'inv_period' : _s('inv_period', 'Poppins',  8, C_TEAL_LIGHT, align=2,  leading=11),
+            'sec_lbl'    : _s('sec_lbl',    'Poppins',  7, C_MUTED,     bold=True,  leading=10),
+            'biz_name'   : _s('biz_name',   'Poppins', 10, C_TEAL_DARK, bold=True,  leading=14),
+            'biz_det'    : _s('biz_det',    'Poppins',  8, C_TEXT_MED,               leading=13),
+            'pay_lbl'    : _s('pay_lbl',    'Poppins',  7, C_MUTED,     bold=True,  leading=10),
+            'pay_val'    : _s('pay_val',    'Poppins',  9, C_TEAL_DARK, bold=True,  leading=13),
+            'cust_name'  : _s('cust_name',  'Poppins', 13, C_TEXT,      bold=True,  leading=17),
+            'cust_det'   : _s('cust_det',   'Poppins',  8, C_TEXT_MED,               leading=13),
+            'badge'      : _s('badge',      'Poppins',  7, C_WHITE,     bold=True,  leading=9, align=1),
+            'th'         : _s('th',         'Poppins',  8, C_WHITE,     bold=True,  leading=11),
+            'th_r'       : _s('th_r',       'Poppins',  8, C_WHITE,     bold=True,  leading=11, align=2),
+            'td'         : _s('td',         'Poppins',  8, C_TEXT,                   leading=12),
+            'td_r'       : _s('td_r',       'Poppins',  8, C_TEXT,                   leading=12, align=2),
+            'td_mono_r'  : _s('tdmr',       'DejaVuMono', 8, C_TEXT,                 leading=12, align=2),
+            'sum_lbl'    : _s('sum_lbl',    'Poppins',  7, C_MUTED,     bold=True,  leading=10, align=1),
+            'sum_val'    : _s('sum_val',    'DejaVu',  12, C_TEXT,                   leading=16, align=1),
+            'sum_val_b'  : _s('sum_val_b',  'DejaVu-Bold', 13, C_TEAL_DARK,         leading=16, align=1),
+            'due_lbl'    : _s('due_lbl',    'Poppins',  7, C_ORANGE,    bold=True,  leading=10, align=1),
+            'due_val'    : _s('due_val',    'DejaVu-Bold', 16, C_ORANGE,             leading=20, align=1),
+            'paid_val'   : _s('paid_val',   'DejaVu-Bold', 13, C_GREEN,             leading=16, align=1),
+            'footer'     : _s('footer',     'Poppins',  7, C_MUTED,                 leading=11, align=1),
+            'footer_b'   : _s('footer_b',   'Poppins',  7, C_TEAL_DARK, bold=True,  leading=11, align=1),
+            'gnote'      : _s('gnote',      'Poppins',  7, C_MUTED,                 leading=11, align=2),
+        }
+ 
         story = []
-
-        month_name = bill.from_date.strftime('%B %Y').upper()
-        date_range = f"{bill.from_date.strftime('%d %b')} - {bill.to_date.strftime('%d %b %Y')}"
-        header_data = [[
-            [Paragraph("MILKY WAY", title_s),
-             Paragraph("Venduvazhy, Kothamangalam", tagline_s),
-             Paragraph("<b>GPAY: 9645311829</b>", tagline_s)],
-            [Paragraph(month_name, period_s), Spacer(1,5),
-             Paragraph(f"<b>INVOICE: #{bill.bill_number}</b>", tagline_s),
-             Paragraph(date_range, tagline_s)]
+        Rs = '\u20b9'   # ₹ rendered via DejaVu font
+ 
+        # ── 1. HEADER ─────────────────────────────────────────────────────────
+        month_label = bill.from_date.strftime('%B %Y')
+        date_range  = (f"{bill.from_date.strftime('%d %b')} \u2013 "
+                       f"{bill.to_date.strftime('%d %b %Y')}")
+ 
+        hdr_data = [[
+            [Paragraph('Milky Way Dairy', sty['brand']), Spacer(1, 3),
+             Paragraph('Fresh from farm to your door every morning', sty['brand_tag'])],
+            [Paragraph('INVOICE', sty['inv_tag']),
+             Paragraph(f'# {bill.bill_number}', sty['inv_no']),
+             Paragraph(f'{month_label}  \u2022  {date_range}', sty['inv_period'])],
         ]]
-        head_tab = Table(header_data, colWidths=[10*cm, 8*cm])
-        head_tab.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,-1),brand_navy),
-            ('LEFTPADDING',(0,0),(-1,-1),20),('RIGHTPADDING',(0,0),(-1,-1),20),
-            ('TOPPADDING',(0,0),(-1,-1),20),('BOTTOMPADDING',(0,0),(-1,-1),20),
-            ('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
-        story.append(head_tab)
-        story.append(Spacer(1, 0.6*cm))
-
-        cust_data = [[[
-            Paragraph("BILL TO", label_s), Spacer(1,2),
-            Paragraph(f"<b>{bill.customer.name}</b>", norm_s.clone('cn', fontSize=12)),
-            Paragraph(bill.customer.phone, norm_s),
-            Paragraph(bill.customer.address[:80], norm_s)
-        ]]]
-        ct = Table(cust_data, colWidths=[18*cm])
-        ct.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,-1),brand_soft),
-            ('LEFTPADDING',(0,0),(-1,-1),15),
-            ('TOPPADDING',(0,0),(-1,-1),12),('BOTTOMPADDING',(0,0),(-1,-1),12)]))
-        story.append(ct)
-        story.append(Spacer(1, 0.8*cm))
-
-        rows_data = [['DATE','DAY','PRODUCT','QTY','RATE','SUBTOTAL']]
-        for d in deliveries:
-            pname = d.product.name.upper() if d.product else 'DAIRY PRODUCT'
-            rows_data.append([
-                d.date.strftime('%d %b'), d.date.strftime('%a').upper(),
-                pname, f"{d.quantity} L", f"{d.price_per_unit}", f"{d.amount:.2f}"
-            ])
-        dt = Table(rows_data, colWidths=[2.5*cm,2*cm,7*cm,2*cm,2*cm,3*cm])
-        dt.setStyle(TableStyle([
-            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,0),8),
-            ('LINEBELOW',(0,0),(-1,0),1,brand_navy),('ALIGN',(3,0),(-1,-1),'RIGHT'),
-            ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,brand_soft]),
-            ('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8)]))
-        story.append(dt)
-        story.append(Spacer(1, 1.5*cm))
-
-        summary_data = [
-            [Paragraph("This Month Total", f_label),
-             Paragraph("Previous Balance",  f_label),
-             Paragraph("Final Total Due",   f_label)],
-            [Paragraph(f"Rs. {bill.net_amount:.2f}",      f_val),
-             Paragraph(f"Rs. {bill.previous_balance:.2f}", f_val),
-             Paragraph(f"Rs. {bill.grand_total:.2f}",
-                       f_val.clone('due', textColor=colors.yellow))]
+        ht = Table(hdr_data, colWidths=[CONTENT_W * 0.58, CONTENT_W * 0.42])
+        ht.setStyle(TableStyle([
+            ('BACKGROUND',    (0,0), (-1,-1), C_TEAL_DARK),
+            ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
+            ('LEFTPADDING',   (0,0), (0,0),   18),
+            ('RIGHTPADDING',  (1,0), (1,0),   18),
+            ('TOPPADDING',    (0,0), (-1,-1), 18),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 18),
+            ('ROUNDEDCORNERS', [8,8,8,8]),
+        ]))
+        story.extend([ht, Spacer(1, 0.4*cm)])
+ 
+        # ── 2. BUSINESS INFO + PAYMENT DETAILS ───────────────────────────────
+        biz_col = [
+            Paragraph('FROM', sty['sec_lbl']), Spacer(1, 3),
+            Paragraph('Milky Way Dairy', sty['biz_name']),
+            Paragraph('Venduvazhy Junction, Kothamangalam', sty['biz_det']),
+            Paragraph('Ernakulam District, Kerala \u2014 686 691', sty['biz_det']),
         ]
-        sc = Table(summary_data, colWidths=[6.3*cm,6.3*cm,6.3*cm])
+        pay_inner = Table([
+            [Paragraph('GPay / PhonePe', sty['pay_lbl'])],
+            [Paragraph('9645311829', sty['pay_val'])],
+            [Spacer(1,4)],
+            [Paragraph('Account Name', sty['pay_lbl'])],
+            [Paragraph('Milky Way Dairy', sty['pay_val'])],
+            [Spacer(1,4)],
+            [Paragraph('UPI ID', sty['pay_lbl'])],
+            [Paragraph('9645311829@okbizaxis', sty['pay_val'])],
+        ], colWidths=[CONTENT_W * 0.40],
+           style=TableStyle([
+               ('LEFTPADDING',   (0,0),(-1,-1), 12),
+               ('RIGHTPADDING',  (0,0),(-1,-1), 12),
+               ('TOPPADDING',    (0,0),(-1,-1), 1),
+               ('BOTTOMPADDING', (0,0),(-1,-1), 1),
+               ('BACKGROUND',    (0,0),(-1,-1), C_GOLD_LIGHT),
+               ('LINELEFT',      (0,0),(-1,-1), 2, C_GOLD),
+               ('TOPPADDING',    (0,0),(-1,0),  10),
+               ('BOTTOMPADDING', (0,-1),(-1,-1),10),
+           ]))
+        pay_col = [Paragraph('PAYMENT DETAILS', sty['sec_lbl']), Spacer(1,4), pay_inner]
+ 
+        info_tab = Table([[biz_col, pay_col]], colWidths=[CONTENT_W*0.52, CONTENT_W*0.48])
+        info_tab.setStyle(TableStyle([
+            ('VALIGN',(0,0),(-1,-1),'TOP'),
+            ('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),
+            ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0),
+        ]))
+        story.extend([info_tab, Spacer(1,0.4*cm), MilkDivider(CONTENT_W), Spacer(1,0.4*cm)])
+ 
+        # ── 3. CUSTOMER CARD ──────────────────────────────────────────────────
+        st = bill.status
+        badge_bg  = C_GREEN if st=='paid' else (colors.HexColor('#1A5C8A') if st=='partial' else C_ORANGE)
+        badge_txt = bill.get_status_display().upper()
+        pill = Table([[Paragraph(badge_txt, sty['badge'])]],
+                     colWidths=[2.8*cm],
+                     style=TableStyle([
+                         ('BACKGROUND',(0,0),(-1,-1),badge_bg),
+                         ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
+                         ('ROUNDEDCORNERS',[5,5,5,5]),
+                     ]))
+        cust_left = [
+            Paragraph('BILLED TO', sty['sec_lbl']), Spacer(1,4),
+            Paragraph(bill.customer.name, sty['cust_name']),
+            Paragraph(f'Mob: {bill.customer.phone}', sty['cust_det']),
+            Paragraph(bill.customer.address[:100], sty['cust_det']),
+        ]
+        cust_right = [
+            Paragraph('STATUS', sty['sec_lbl']), Spacer(1,6), pill, Spacer(1,8),
+            Paragraph('BILL DATE', sty['sec_lbl']),
+            Paragraph(datetime.date.today().strftime('%d %B %Y'), sty['cust_det']),
+        ]
+        ct = Table([[cust_left, cust_right]], colWidths=[CONTENT_W*0.65, CONTENT_W*0.35])
+        ct.setStyle(TableStyle([
+            ('BACKGROUND',(0,0),(-1,-1),C_TEAL_LIGHT),
+            ('VALIGN',(0,0),(-1,-1),'TOP'),
+            ('LEFTPADDING',(0,0),(-1,-1),14),('RIGHTPADDING',(0,0),(-1,-1),14),
+            ('TOPPADDING',(0,0),(-1,-1),14),('BOTTOMPADDING',(0,0),(-1,-1),14),
+            ('LINELEFT',(0,0),(0,-1),3,C_TEAL),
+            ('ROUNDEDCORNERS',[6,6,6,6]),
+        ]))
+        story.extend([ct, Spacer(1,0.55*cm)])
+ 
+        # ── 4. DELIVERY LOG ───────────────────────────────────────────────────
+        story.append(Paragraph('DELIVERY LOG', sty['sec_lbl']))
+        story.append(Spacer(1,4))
+ 
+        COL = [2.5*cm, 1.6*cm, 6.8*cm, 2.3*cm, 2.5*cm, 3.0*cm]
+        tbl_rows = [[
+            Paragraph('DATE',    sty['th']), Paragraph('DAY',     sty['th']),
+            Paragraph('PRODUCT', sty['th']), Paragraph('QTY',     sty['th_r']),
+            Paragraph('RATE',    sty['th_r']),Paragraph('AMOUNT', sty['th_r']),
+        ]]
+        for i, d in enumerate(deliveries):
+            pname = d.product.name if d.product else 'Dairy Product'
+            tbl_rows.append([
+                Paragraph(d.date.strftime('%d %b %Y'), sty['td']),
+                Paragraph(d.date.strftime('%a'),        sty['td']),
+                Paragraph(pname,                        sty['td']),
+                Paragraph(f'{d.quantity} L',            sty['td_r']),
+                Paragraph(f'{d.price_per_unit:.2f}',sty['td_mono_r']),
+                Paragraph(f'{d.amount:.2f}''Rs',        sty['td_mono_r']),
+            ])
+ 
+        row_styles = [
+            ('BACKGROUND',(0,0),(-1,0),C_TEAL),
+            ('TOPPADDING',(0,0),(-1,0),8),('BOTTOMPADDING',(0,0),(-1,0),8),
+            ('TOPPADDING',(0,1),(-1,-1),5),('BOTTOMPADDING',(0,1),(-1,-1),5),
+            ('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('LINEBELOW',(0,0),(-1,-1),0.3,C_BORDER),
+            ('ROUNDEDCORNERS',[5,5,5,5]),
+        ]
+        for i in range(1, len(tbl_rows)):
+            row_styles.append(('BACKGROUND',(0,i),(-1,i), C_WHITE if i%2==1 else C_STRIPE))
+        dt = Table(tbl_rows, colWidths=COL, repeatRows=1)
+        dt.setStyle(TableStyle(row_styles))
+        story.extend([dt, Spacer(1,0.6*cm)])
+ 
+        # ── 5. SUMMARY CARDS ──────────────────────────────────────────────────
+        CARD_W = CONTENT_W / 5
+        sum_data = [
+            [Paragraph('MONTH TOTAL',  sty['sum_lbl']), 
+             Paragraph('PREV BALANCE', sty['sum_lbl']),
+             Paragraph('AMOUNT PAID',  sty['sum_lbl']),
+             Paragraph('AMOUNT DUE',   sty['due_lbl'])],
+            [Paragraph(f'{actual_total:.2f}', sty['sum_val_b']),
+             Paragraph(f'{bill.previous_balance:.2f}',sty['sum_val']),
+             Paragraph(f'{amount_paid:.2f}',  sty['paid_val']),
+             Paragraph(f'{amount_due:.2f}''Rs',   sty['due_val'])],
+        ]
+        sc = Table(sum_data, colWidths=[CARD_W]*5)
         sc.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,-1),brand_navy),
-            ('TOPPADDING',(0,0),(-1,-1),12),('BOTTOMPADDING',(0,0),(-1,-1),12),
-            ('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
-        story.append(sc)
-        story.append(Spacer(1,1*cm))
-        story.append(Paragraph(
-            "THANK YOU FOR CHOOSING MILKY WAY • QUALITY IN EVERY DROP",
-            ParagraphStyle('f', parent=norm_s, alignment=1, fontSize=8, textColor=colors.gray)))
-
-        doc.build(story)
+            ('BACKGROUND',(0,0),(3,-1),C_TEAL_LIGHT),
+            ('BACKGROUND',(4,0),(4,-1),C_ORANGE_BG),
+            ('TOPPADDING',(0,0),(-1,-1),10),('BOTTOMPADDING',(0,0),(-1,-1),10),
+            ('LEFTPADDING',(0,0),(-1,-1),4),('RIGHTPADDING',(0,0),(-1,-1),4),
+            ('LINEAFTER',(0,0),(3,-1),0.5,C_BORDER),
+            ('LINELEFT',(4,0),(4,-1),2,C_ORANGE),
+            ('ROUNDEDCORNERS',[6,6,6,6]),
+        ]))
+        story.append(KeepTogether([sc]))
+        story.append(Spacer(1,0.3*cm))
+        story.extend([Spacer(1,0.5*cm), MilkDivider(CONTENT_W), Spacer(1,0.3*cm)])
+ 
+        # ── 6. FOOTER ─────────────────────────────────────────────────────────
+        ft = Table([[
+            Paragraph('Thank you for choosing\nMilky Way Dairy!', sty['footer_b']),
+            Paragraph('Pay via GPay / PhonePe\n9645311829', sty['footer_b']),
+            Paragraph('Fresh milk delivered daily\nwith love and care \U0001f95b', sty['footer']),
+        ]], colWidths=[CONTENT_W/3]*3)
+        ft.setStyle(TableStyle([
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4),
+            ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
+            ('LINEAFTER',(0,0),(1,-1),0.4,C_BORDER),
+        ]))
+        story.append(ft)
+ 
+        doc.build(story, onFirstPage=_draw_bg, onLaterPages=_draw_bg)
         buf.seek(0)
+ 
         resp = HttpResponse(buf, content_type='application/pdf')
-        resp['Content-Disposition'] = f'inline; filename="MilkyWay_{bill.bill_number}.pdf"'
+        resp['Content-Disposition'] = (
+            f'inline; filename="MilkyWay_Invoice_{bill.bill_number}.pdf"'
+        )
         return resp
-
+ 
     except Exception as e:
-        return HttpResponse(f"PDF Error: {e}", status=500)
-
+        return HttpResponse(f'PDF generation error: {e}', status=500)
 
 @login_required
 def bill_whatsapp(request, pk):
@@ -1140,7 +1378,7 @@ def payment_add(request, customer_pk=None):
                     status='paid' if paid >= b.grand_total else 'partial')
             except Bill.DoesNotExist:
                 pass
-        messages.success(request, f'Payment of ₹{pmt.amount} recorded for {cust.name}')
+        messages.success(request, f'Payment of 💸{pmt.amount} recorded for {cust.name}')
         return redirect('customer_detail', pk=cust.pk)
     return render(request, 'delivery/payment_form.html', {
         'customers': customers, 'customer': customer, 'unpaid_bills': unpaid_bills,
@@ -1180,7 +1418,7 @@ def payment_delete(request, pk):
             Bill.objects.filter(pk=bill.pk).update(
                 status=('paid' if paid >= bill.grand_total and bill.grand_total > 0
                         else 'partial' if paid > 0 else 'unpaid'))
-        messages.success(request, f'Payment of ₹{amt} from {cust} deleted.')
+        messages.success(request, f'Payment of 💸{amt} from {cust} deleted.')
         return redirect('payment_list')
     return render(request, 'delivery/confirm_delete.html', {
         'object': payment, 'type': 'Payment',
@@ -1288,7 +1526,7 @@ def expense_add(request):
                 if 'receipt' in request.FILES:
                     exp.receipt = request.FILES['receipt']
                 exp.save()
-                messages.success(request, f'Expense "{exp.title}" of ₹{exp.amount} added!')
+                messages.success(request, f'Expense "{exp.title}" of 💸{exp.amount} added!')
                 return redirect('expense_list')
             except Exception as e:
                 messages.error(request, f'Error: {e}')

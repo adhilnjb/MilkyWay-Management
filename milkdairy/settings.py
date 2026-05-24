@@ -3,29 +3,23 @@ from pathlib import Path
 from dotenv import load_dotenv
 import dj_database_url
 
-# Load environment variables from .env file for local development
 load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-milkdairy-secret-key-change-in-production-2024')
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-milkdairy-secret-key-change'
+)
 
-# TEMPORARILY FORCED TO TRUE TO REVEAL THE 500 SERVER ERROR DETAILS ON VERCEL
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = [
-    'localhost', 
-    '127.0.0.1', 
-    '.onrender.com',      
-    '.ngrok-free.app', 
-    '.ngrok-free.dev',
-    '.ngrok.io',
-    '.vercel.app',        # Allows Vercel domains
+    'localhost',
+    '127.0.0.1',
+    '.vercel.app',
 ]
 
-# Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -33,12 +27,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'whitenoise.runserver_nostatic',
+
     'delivery',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serves static files on serverless Vercel
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -65,80 +63,40 @@ TEMPLATES = [
     },
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://*.ngrok-free.app', 
-    'https://*.ngrok-free.dev', 
-    'https://*.ngrok.io',
-    'https://*.vercel.app'  # Allows login forms to process on Vercel safely
-]
-
 WSGI_APPLICATION = 'milkdairy.wsgi.application'
 
 
-# ==============================================================================
-# DATABASE CONFIGURATION (NEON CLOUD VS LOCAL POSTGRES)
-# ==============================================================================
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get("DATABASE_URL"),
+        conn_max_age=600,
+        ssl_require=True
+    )
+}
 
-if 'VERCEL' in os.environ:
-    # Use dj_database_url to parse the string safely.
-    # If Vercel hasn't fully injected it yet during cold-start, we pass an empty string
-    # to prevent a hard crash, falling back cleanly when the request hits.
-    db_url = os.environ.get('DATABASE_URL', '')
-    
-    DATABASES = {
-        'default': dj_database_url.parse(db_url)
-    }
-    
-    # Critical optimizations for Neon serverless architecture
-    DATABASES['default']['CONN_MAX_AGE'] = 600
-    DATABASES['default']['OPTIONS'] = {
-        'sslmode': 'require',
-    }
-else:
-    # Local fallback for coding on your computer at home/college
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'MilkyWayDB',
-            'USER': 'postgres',
-            'PASSWORD': 'Adhil@2026',  
-            'HOST': 'localhost',
-            'PORT': '5432',
-        }
-    }
-
-# Password validation
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
-
-
-# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Kolkata'
+
 USE_I18N = True
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'static'
+]
+
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# WhiteNoise production asset compression
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = (
+    'whitenoise.storage.CompressedManifestStaticFilesStorage'
+)
 
-
-# Media files configuration
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Authentication URLs
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
