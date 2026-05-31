@@ -1,12 +1,5 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "milkdairy/wsgi.py",
-      "use": "@vercel/python",
-      "config": { "maxDuration": 30 }
-    }
-  ],
   "routes": [
     {
       "src": "/static/(.*)",
