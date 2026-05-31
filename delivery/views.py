@@ -71,17 +71,17 @@ def dashboard(request):
 
     total_customers   = Customer.objects.filter(status='active').count()
     today_deliveries  = DailyDelivery.objects.filter(date=today, is_delivered=True)
-    today_qty         = today_deliveries.aggregate(q=Sum('quantity'))['q'] or Decimal('0')
-    today_revenue     = today_deliveries.aggregate(r=Sum('amount'))['r']   or Decimal('0')
+    today_qty         = today_deliveries.aggregate(q=Sum('quantity'))['q'] or Decimal('00.00')
+    today_revenue     = today_deliveries.aggregate(r=Sum('amount'))['r']   or Decimal('0.00')
 
     month_deliveries  = DailyDelivery.objects.filter(date__month=month, date__year=year, is_delivered=True)
-    month_qty         = month_deliveries.aggregate(q=Sum('quantity'))['q'] or Decimal('0')
-    month_revenue     = month_deliveries.aggregate(r=Sum('amount'))['r']   or Decimal('0')
+    month_qty         = month_deliveries.aggregate(q=Sum('quantity'))['q'] or Decimal('00.00')
+    month_revenue     = month_deliveries.aggregate(r=Sum('amount'))['r']   or Decimal('0.00')
 
     pending_bills     = Bill.objects.filter(status__in=['unpaid','partial']).count()
-    pending_amount    = Bill.objects.filter(status__in=['unpaid','partial']).aggregate(t=Sum('grand_total'))['t'] or Decimal('0')
+    pending_amount    = Bill.objects.filter(status__in=['unpaid','partial']).aggregate(t=Sum('grand_total'))['t'] or Decimal('0.00')
 
-    month_expenses    = Expense.objects.filter(date__month=month, date__year=year).aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    month_expenses    = Expense.objects.filter(date__month=month, date__year=year).aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
 
     week_start = today - datetime.timedelta(days=6)
     week_data  = {
@@ -275,8 +275,8 @@ def customer_detail(request, pk):
     payments      = Payment.objects.filter(customer=customer).order_by('-payment_date')[:10]
     month_qs      = DailyDelivery.objects.filter(customer=customer, date__month=month,
                                                   date__year=year, is_delivered=True)
-    month_qty     = month_qs.aggregate(q=Sum('quantity'))['q'] or Decimal('0')
-    month_amt     = month_qs.aggregate(a=Sum('amount'))['a']   or Decimal('0')
+    month_qty     = month_qs.aggregate(q=Sum('quantity'))['q'] or Decimal('00.00')
+    month_amt     = month_qs.aggregate(a=Sum('amount'))['a']   or Decimal('0.00')
     return render(request, 'delivery/customer_detail.html', {
         'customer': customer, 'subscriptions': subscriptions,
         'deliveries': deliveries, 'bills': bills, 'payments': payments,
@@ -369,9 +369,9 @@ def delivery_today(request):
 
     total_delivered = sum(1 for r in rows if any(
         sr['delivery'] and sr['delivery'].is_delivered for sr in r['sub_rows']))
-    total_qty    = sum(float(sr['delivery'].quantity) for r in rows for sr in r['sub_rows']
+    total_qty    = sum(Decimal(str(sr['delivery'].quantity)) for r in rows for sr in r['sub_rows']
                        if sr['delivery'] and sr['delivery'].is_delivered)
-    total_amount = sum(float(sr['delivery'].amount) for r in rows for sr in r['sub_rows']
+    total_amount = sum(Decimal(str(sr['delivery'].amount)) for r in rows for sr in r['sub_rows']
                        if sr['delivery'] and sr['delivery'].is_delivered)
     scheduled_count = sum(1 for r in rows if r['scheduled'])
     pending_count   = len(rows) - total_delivered
@@ -435,7 +435,7 @@ def delivery_bulk_update(request):
         reason       = request.POST.get(rsn_key, '')
 
         qty   = Decimal(qty_raw) if qty_raw else (customer.default_qty if is_delivered else Decimal('0'))
-        qty   = max(Decimal('0'), qty)
+        qty   = max(Decimal('0.00'), qty)
         sub   = CustomerSubscription.objects.filter(
             customer=customer, product=product, is_active=True).first()
         price  = sub.custom_price if (sub and sub.custom_price) else product.default_price
@@ -627,11 +627,11 @@ def trip_delivery_entry(request):
             reason       = request.POST.get(f'reason_{cid}_{pid}', '')
 
             qty   = _dec(qty_raw, str(customer.default_qty)) if qty_raw else customer.default_qty
-            qty   = max(Decimal('0'), qty)
+            qty   = max(Decimal('0.00'), qty)
             sub   = CustomerSubscription.objects.filter(
                 customer=customer, product=product, is_active=True).first()
             price  = sub.custom_price if (sub and sub.custom_price) else product.default_price
-            amount = (qty * price) if is_delivered else Decimal('0')
+            amount = (qty * price) if is_delivered else Decimal('0.00')
 
             existing = existing_recs.get((cid, pid))
             if existing:
@@ -698,8 +698,8 @@ def trip_summary(request):
 
     trip_customers     = []
     product_totals     = {}   # {product_name: {qty, amount, unit}}
-    grand_total_qty    = Decimal('0')
-    grand_total_amount = Decimal('0')
+    grand_total_qty    = Decimal('00.00')
+    grand_total_amount = Decimal('0.00')
     not_delivered_count = 0
 
     if sel_route:
@@ -907,7 +907,7 @@ def bill_detail(request, pk):
             grand_total=actual_grand_total)
         bill.grand_total = actual_grand_total
 
-    amount_due      = max(Decimal('0'), bill.grand_total - amount_paid)
+    amount_due      = max(Decimal('0.00'), bill.grand_total - amount_paid)
     expected_status = ('paid' if bill.grand_total <= 0 else
                        'paid' if amount_paid >= bill.grand_total else
                        'partial' if amount_paid > 0 else 'unpaid')
@@ -1091,7 +1091,7 @@ def bill_pdf(request, pk):
  
     amount_paid = (Payment.objects.filter(bill=bill)
                    .aggregate(t=Sum('amount'))['t'] or Decimal('0'))
-    amount_due  = max(Decimal('0'), grand_total - amount_paid)
+    amount_due  = max(Decimal('0.00'), grand_total - amount_paid)
  
     try:
         PAGE_W, PAGE_H = A4
@@ -1175,10 +1175,10 @@ def bill_pdf(request, pk):
             [Paragraph('9645311829', sty['pay_val'])],
             [Spacer(1,4)],
             [Paragraph('Account Name', sty['pay_lbl'])],
-            [Paragraph('Milky Way Dairy', sty['pay_val'])],
+            [Paragraph('Adhil Najeeb', sty['pay_val'])],
             [Spacer(1,4)],
             [Paragraph('UPI ID', sty['pay_lbl'])],
-            [Paragraph('9645311829@okbizaxis', sty['pay_val'])],
+            [Paragraph('adhilnajeeb469@okhdfcbank', sty['pay_val'])],
         ], colWidths=[CONTENT_W * 0.40],
            style=TableStyle([
                ('LEFTPADDING',   (0,0),(-1,-1), 12),
@@ -1299,7 +1299,7 @@ def bill_pdf(request, pk):
         ft = Table([[
             Paragraph('Thank you for choosing\nMilky Way Dairy!', sty['footer_b']),
             Paragraph('Pay via GPay / PhonePe\n9645311829', sty['footer_b']),
-            Paragraph('Fresh milk delivered daily\nwith love and care \U0001f95b', sty['footer']),
+            Paragraph('Fresh milk delivered daily\nwith love and care', sty['footer']),
         ]], colWidths=[CONTENT_W/3]*3)
         ft.setStyle(TableStyle([
             ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
@@ -1343,7 +1343,7 @@ def api_bill_status(request, pk):
     return JsonResponse({
         'bill_number': bill.bill_number, 'grand_total': float(bill.grand_total),
         'amount_paid': float(paid),
-        'amount_due':  float(max(Decimal('0'), bill.grand_total - paid)),
+        'amount_due':  float(max(Decimal('0.00'), bill.grand_total - paid)),
         'status': bill.status
     })
 

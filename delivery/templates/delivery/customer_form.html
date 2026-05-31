@@ -115,7 +115,6 @@
 <form method="post" id="mainForm">
     {% csrf_token %}
 
-    <!-- 1. Profile Section -->
     <div class="sec">
         <div class="sec-title">
             <span>👤 Basic Profile</span>
@@ -151,7 +150,6 @@
         </div>
     </div>
 
-    <!-- 2. Delivery Section -->
     <div class="sec">
         <div class="sec-title">📍 Delivery Details</div>
         <div class="form-group" style="margin-bottom:18px;">
@@ -174,7 +172,6 @@
         </div>
     </div>
 
-    <!-- 3. Subscriptions Section -->
     <div class="sec">
         <div class="sec-title">🥛 Product Subscriptions</div>
         <div id="subList">
@@ -193,7 +190,7 @@
                     </div>
                     <div class="form-group">
                         <label>Qty</label>
-                        <input type="number" name="sub_qty" class="form-control font-mono sub-trigger" step="0.1" value="{{ sub.quantity }}">
+                        <input type="number" name="sub_qty" class="form-control font-mono sub-trigger" step="0.01" value="{{ sub.quantity|floatformat:2 }}">
                     </div>
                     <div class="form-group">
                         <label>Rate (Opt)</label>
@@ -215,7 +212,7 @@
                     </div>
                     <div class="form-group">
                         <label>Qty</label>
-                        <input type="number" name="sub_qty" class="form-control font-mono sub-trigger" step="0.1" value="1.0">
+                        <input type="number" name="sub_qty" class="form-control font-mono sub-trigger" step="0.01" value="1.00">
                     </div>
                     <div class="form-group">
                         <label>Rate (Opt)</label>
@@ -230,7 +227,6 @@
         </button>
     </div>
 
-    <!-- 4. Schedule Section -->
     <div class="sec">
         <div class="sec-title">📅 Delivery Cycle & Estimation</div>
         <input type="hidden" name="delivery_schedule" id="scheduleInput" value="{{ customer.delivery_schedule|default:'daily' }}">
@@ -277,7 +273,6 @@
         </div>
     </div>
 
-    <!-- Actions -->
     <div style="display:flex; gap:12px; margin-top: 30px;">
         <button type="submit" class="btn btn-primary" style="flex:2; height: 50px; font-size: 15px; justify-content: center;">
             {% if action == 'Add' %}➕ Create Profile{% else %}💾 Save Changes{% endif %}
@@ -297,7 +292,8 @@
         const container = document.getElementById('subList');
         const firstRow = container.querySelector('.sub-row');
         const newRow = firstRow.cloneNode(true);
-        newRow.querySelectorAll('input').forEach(i => i.value = (i.name === 'sub_qty' ? "1.0" : ""));
+        // Clean value to two decimal places on row clone initialization
+        newRow.querySelectorAll('input').forEach(i => i.value = (i.name === 'sub_qty' ? "1.00" : ""));
         newRow.querySelector('select').selectedIndex = 0;
         container.appendChild(newRow);
         attachTriggers();

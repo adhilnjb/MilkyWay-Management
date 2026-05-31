@@ -1,9 +1,14 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>{% block title %}Milky Way Pro{% endblock %}</title>
+
+<!-- Your Custom Tab Logo (Favicon) -->
+<link rel="icon" type="image/jpg" href="{% static 'img/MilkyWay Logo.jpg' %}">
+
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
@@ -376,7 +381,7 @@ tbody td { padding: 14px 14px; border-bottom: 1px solid var(--table-row-border);
     letter-spacing: -0.01em;
     display: inline-block;
     padding: 2px 0;
-    color: red(--muted);
+    color: var(--muted);
     transition: color 0.3s ease;
     
 }

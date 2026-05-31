@@ -106,7 +106,7 @@
 
 /* ── QTY INPUT & BUTTONS ── */
 .qi {
-  width: 82px; padding: 8px;
+  width: 86px; padding: 8px;
   border: 1.5px solid var(--border); border-radius: 8px;
   font-size: 14px; font-weight: 700;
   font-family: 'JetBrains Mono', monospace; text-align: center;
@@ -115,7 +115,7 @@
 }
 .qb { display: flex; gap: 3px; margin-top: 4px; }
 .qb button {
-  padding: 4px 8px; border-radius: 5px; font-size: 10px; font-weight: 700;
+  flex: 1; padding: 4px 0; border-radius: 5px; font-size: 10px; font-weight: 700;
   border: 1.5px solid var(--border);
   background: var(--card); color: var(--text);
   cursor: pointer; transition: background .2s, color .2s;
@@ -188,11 +188,11 @@
     </div>
   </div>
   <div class="stat-card amber" style="padding:15px;">
-    <div class="stat-value" id="sc-qty" style="font-size:20px;">{{ total_qty|floatformat:1 }}L</div>
+    <div class="stat-value" id="sc-qty" style="font-size:20px;">{{ total_qty|floatformat:2 }}L</div>
     <div class="stat-label">Total Volume</div>
   </div>
   <div class="stat-card green" style="padding:15px;">
-    <div class="stat-value" id="sc-rev" style="font-size:20px;">₹{{ total_amount|floatformat:0 }}</div>
+    <div class="stat-value" id="sc-rev" style="font-size:20px;">₹{{ total_amount|floatformat:2 }}</div>
     <div class="stat-label">Total Revenue</div>
   </div>
 </div>
@@ -268,10 +268,10 @@
             <div style="font-size:11px; color:var(--primary-light); font-weight:700;">{{ sub.product.name }} | {{ c.get_area_display }}</div>
           </td>
           <td>
-            <input type="number" name="qty_{{ c.id }}_{{ sub.product.id }}" id="qi-{{ c.id }}-{{ sub.product.id }}" class="qi" step="0.1" value="{{ d.quantity|default:sub.quantity }}" oninput="onQtyChange('{{ c.id }}-{{ sub.product.id }}', this.value)">
+            <input type="number" name="qty_{{ c.id }}_{{ sub.product.id }}" id="qi-{{ c.id }}-{{ sub.product.id }}" class="qi" step="0.01" value="{{ d.quantity|default:sub.quantity|floatformat:2 }}" oninput="onQtyChange('{{ c.id }}-{{ sub.product.id }}', this.value)">
             <div class="qb">
-              <button type="button" onclick="setQty('{{ c.id }}-{{ sub.product.id }}', 0.1)">.1</button>
-              <button type="button" onclick="setQty('{{ c.id }}-{{ sub.product.id }}', 1)">1</button>
+              <button type="button" onclick="setQty('{{ c.id }}-{{ sub.product.id }}', 0.25)">0.25</button>
+              <button type="button" onclick="setQty('{{ c.id }}-{{ sub.product.id }}', 0.50)">0.50</button>
             </div>
           </td>
           <td class="amt-cell" id="amt-{{ c.id }}-{{ sub.product.id }}">₹0.00</td>
@@ -293,8 +293,8 @@
   <div class="sfooter">
     <div style="font-size:13px; font-weight:700;">
       <span id="fDel" style="color:var(--success);">0</span> Done ·
-      <span id="fQty" style="color:var(--primary-light);">0L</span> ·
-      <span id="fAmt" style="color:var(--text);">₹0</span>
+      <span id="fQty" style="color:var(--primary-light);">0.00L</span> ·
+      <span id="fAmt" style="color:var(--text);">₹0.00</span>
     </div>
     <button type="submit" class="btn btn-primary btn-lg" style="width:100%; max-width:300px; justify-content:center;">💾 Save All Updates</button>
   </div>
@@ -346,9 +346,9 @@ function renderRow(key) {
 
 function toggleDel(key)      { S[key].delivered = !S[key].delivered; renderRow(key); }
 function onQtyChange(key, v) { S[key].qty = parseFloat(v) || 0; renderRow(key); }
-function setQty(key, qty)    { document.getElementById(`qi-${key}`).value = qty; S[key].qty = qty; renderRow(key); }
+function setQty(key, qty)    { document.getElementById(`qi-${key}`).value = qty.toFixed(2); S[key].qty = qty; renderRow(key); }
 function markAll(del)        { Object.keys(S).forEach(k => { S[k].delivered = del; renderRow(k); }); }
-function resetQty()          { Object.keys(S).forEach(k => { S[k].qty = S[k].defaultQty; document.getElementById(`qi-${k}`).value = S[k].qty; renderRow(k); }); }
+function resetQty()          { Object.keys(S).forEach(k => { S[k].qty = S[k].defaultQty; document.getElementById(`qi-${k}`).value = S[k].qty.toFixed(2); renderRow(k); }); }
 
 function updateFooter() {
   let del = 0, qty = 0, amt = 0;
@@ -356,7 +356,8 @@ function updateFooter() {
     if (S[k].delivered) { del++; qty += S[k].qty; amt += (S[k].qty * S[k].price); }
   });
   document.getElementById('fDel').textContent = del;
-  document.getElementById('fQty').textContent = qty.toFixed(1) + 'L';
+  // Updated lower real-time counter fields to fixed length of 2 decimals
+  document.getElementById('fQty').textContent = qty.toFixed(2) + 'L';
   document.getElementById('fAmt').textContent = '₹' + amt.toFixed(2);
   const total = Object.keys(S).length;
   const pct   = total > 0 ? (del / total) * 100 : 0;
