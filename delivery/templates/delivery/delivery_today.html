@@ -92,16 +92,19 @@
 .dtbl tbody tr.rd { background: var(--row-delivered); }
 .dtbl tbody tr.rm { background: var(--row-missed); }
 .dtbl tbody tr.ru { background: var(--row-unknown); }
+.dtbl tbody tr.rp { background: var(--row-paused); opacity: 0.8; } /* 👈 New style rule for paused accounts */
 
 [data-theme="dark"] {
   --row-delivered: rgba(16, 185, 129, 0.08);
   --row-missed:    rgba(239, 68,  68,  0.08);
   --row-unknown:   rgba(245, 158, 11,  0.08);
+  --row-paused:    rgba(217, 119, 6, 0.12);
 }
 [data-theme="light"] {
   --row-delivered: #f0fdf4;
   --row-missed:    #fff8f8;
   --row-unknown:   #fffbeb;
+  --row-paused:    #fef3c7;
 }
 
 /* ── QTY INPUT & BUTTONS ── */
@@ -133,6 +136,7 @@
 }
 .dt.del { background: var(--success); border-color: var(--success); color: white; }
 .dt.mis { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
+.dt.pau { background: #d97706; border-color: #b45309; color: white; cursor: not-allowed; } /* 👈 Styling variant for paused toggle button */
 
 /* ── AMOUNT CELL ── */
 .amt-cell { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 14px; color: var(--text); }
@@ -255,32 +259,38 @@
       <tbody id="dBody">
       {% for row in rows %}
         {% for sr in row.sub_rows %}
-        {% with c=row.customer sub=sr.sub d=sr.delivery %}
+        {% with c=row.customer sub=sr.sub d=sr.delivery is_p=row.is_paused %}
         <tr id="row-{{ c.id }}-{{ sub.product.id }}"
             data-cid="{{ c.id }}"
             data-pid="{{ sub.product.id }}"
             data-qty="{{ d.quantity|default:sub.quantity }}"
             data-price="{{ sub.price|default:sub.product.default_price }}"
             data-default="{{ sub.quantity }}"
-            data-delivered="{% if d and not d.is_delivered %}0{% else %}1{% endif %}">
+            data-paused="{% if is_p %}1{% else %}0{% endif %}"
+            data-delivered="{% if is_p %}0{% elif d and not d.is_delivered %}0{% else %}1{% endif %}">
           <td>
-            <div style="font-weight:800; font-size:14px;">{{ c.name }}</div>
+            <div style="font-weight:800; font-size:14px;">
+              {{ c.name }}
+              {% if is_p %}
+                <span style="font-size:10px; background:#d97706; color:white; padding:2px 6px; border-radius:4px; margin-left:5px; vertical-align:middle;">PAUSED</span>
+              {% endif %}
+            </div>
             <div style="font-size:11px; color:var(--primary-light); font-weight:700;">{{ sub.product.name }} | {{ c.get_area_display }}</div>
           </td>
           <td>
-            <input type="number" name="qty_{{ c.id }}_{{ sub.product.id }}" id="qi-{{ c.id }}-{{ sub.product.id }}" class="qi" step="0.01" value="{{ d.quantity|default:sub.quantity|floatformat:2 }}" oninput="onQtyChange('{{ c.id }}-{{ sub.product.id }}', this.value)">
-            <div class="qb">
+            <input type="number" name="qty_{{ c.id }}_{{ sub.product.id }}" id="qi-{{ c.id }}-{{ sub.product.id }}" class="qi" step="0.01" value="{{ d.quantity|default:sub.quantity|floatformat:2 }}" oninput="onQtyChange('{{ c.id }}-{{ sub.product.id }}', this.value)" {% if is_p %}readonly style="opacity:0.5;"{% endif %}>
+            <div class="qb" {% if is_p %}style="display:none;"{% endif %}>
               <button type="button" onclick="setQty('{{ c.id }}-{{ sub.product.id }}', 0.25)">0.25</button>
               <button type="button" onclick="setQty('{{ c.id }}-{{ sub.product.id }}', 0.50)">0.50</button>
             </div>
           </td>
           <td class="amt-cell" id="amt-{{ c.id }}-{{ sub.product.id }}">₹0.00</td>
           <td>
-            <div class="dt" id="tog-{{ c.id }}-{{ sub.product.id }}" onclick="toggleDel('{{ c.id }}-{{ sub.product.id }}')">✓</div>
+            <div class="dt" id="tog-{{ c.id }}-{{ sub.product.id }}" {% if not is_p %}onclick="toggleDel('{{ c.id }}-{{ sub.product.id }}')"{% endif %}>✓</div>
             <input type="checkbox" name="delivered_{{ c.id }}_{{ sub.product.id }}" id="cb-{{ c.id }}-{{ sub.product.id }}" style="display:none;">
           </td>
           <td>
-            <input type="text" name="reason_{{ c.id }}_{{ sub.product.id }}" id="rsn-{{ c.id }}-{{ sub.product.id }}" class="form-control" style="font-size:11px; min-width:80px;" value="{{ d.not_delivered_reason|default:'' }}" placeholder="Reason...">
+            <input type="text" name="reason_{{ c.id }}_{{ sub.product.id }}" id="rsn-{{ c.id }}-{{ sub.product.id }}" class="form-control" style="font-size:11px; min-width:80px;" value="{% if is_p %}⏸️ Customer Paused{% else %}{{ d.not_delivered_reason|default:'' }}{% endif %}" placeholder="Reason..." {% if is_p %}readonly{% endif %}>
           </td>
         </tr>
         {% endwith %}
@@ -309,11 +319,16 @@ const S = {};
 document.querySelectorAll('#dBody tr[data-cid]').forEach(tr => {
   const key = `${tr.dataset.cid}-${tr.dataset.pid}`;
   S[key] = {
-    delivered:  tr.dataset.delivered !== '0',
-    qty:        parseFloat(tr.dataset.qty)     || 0,
-    price:      parseFloat(tr.dataset.price)   || 0,
+    paused:    tr.dataset.paused === '1',
+    delivered: tr.dataset.delivered !== '0',
+    qty:       parseFloat(tr.dataset.qty)     || 0,
+    price:     parseFloat(tr.dataset.price)   || 0,
     defaultQty: parseFloat(tr.dataset.default) || 0
   };
+  // Force active state to false for paused items
+  if (S[key].paused) {
+    S[key].delivered = false;
+  }
 });
 
 function renderRow(key) {
@@ -325,7 +340,13 @@ function renderRow(key) {
   const qi   = document.getElementById(`qi-${key}`);
   const amtEl = document.getElementById(`amt-${key}`);
 
-  if (r.delivered) {
+  if (r.paused) {
+    tr.className = 'rp';
+    tog.className = 'dt pau';
+    tog.textContent = '⏸️';
+    if (rsn) rsn.style.visibility = 'visible';
+    if (qi)  qi.style.opacity = '0.5';
+  } else if (r.delivered) {
     tr.className  = 'rd';
     tog.className = 'dt del';
     tog.textContent = '✓';
@@ -338,29 +359,54 @@ function renderRow(key) {
     if (rsn) rsn.style.visibility = 'visible';
     if (qi)  qi.style.opacity = '0.5';
   }
+  
   if (cb) cb.checked = r.delivered;
   const amt = r.delivered ? (r.qty * r.price) : 0;
   amtEl.textContent = '₹' + amt.toFixed(2);
   updateFooter();
 }
 
-function toggleDel(key)      { S[key].delivered = !S[key].delivered; renderRow(key); }
-function onQtyChange(key, v) { S[key].qty = parseFloat(v) || 0; renderRow(key); }
-function setQty(key, qty)    { document.getElementById(`qi-${key}`).value = qty.toFixed(2); S[key].qty = qty; renderRow(key); }
-function markAll(del)        { Object.keys(S).forEach(k => { S[k].delivered = del; renderRow(k); }); }
-function resetQty()          { Object.keys(S).forEach(k => { S[k].qty = S[k].defaultQty; document.getElementById(`qi-${k}`).value = S[k].qty.toFixed(2); renderRow(k); }); }
+function toggleDel(key)      { if (!S[key].paused) { S[key].delivered = !S[key].delivered; renderRow(key); } }
+function onQtyChange(key, v) { if (!S[key].paused) { S[key].qty = parseFloat(v) || 0; renderRow(key); } }
+function setQty(key, qty)    { if (!S[key].paused) { document.getElementById(`qi-${key}`).value = qty.toFixed(2); S[key].qty = qty; renderRow(key); } }
+
+function markAll(del) { 
+  Object.keys(S).forEach(k => { 
+    if (!S[k].paused) { S[k].delivered = del; renderRow(k); } 
+  }); 
+}
+
+function resetQty() { 
+  Object.keys(S).forEach(k => { 
+    if (!S[k].paused) {
+      S[k].qty = S[k].defaultQty; 
+      document.getElementById(`qi-${k}`).value = S[k].qty.toFixed(2); 
+      renderRow(k); 
+    }
+  }); 
+}
 
 function updateFooter() {
   let del = 0, qty = 0, amt = 0;
+  let activeTotal = 0;
+
   Object.keys(S).forEach(k => {
-    if (S[k].delivered) { del++; qty += S[k].qty; amt += (S[k].qty * S[k].price); }
+    if (!S[k].paused) {
+      activeTotal++;
+    }
+    if (S[k].delivered) { 
+      del++; 
+      qty += S[k].qty; 
+      amt += (S[k].qty * S[k].price); 
+    }
   });
+  
   document.getElementById('fDel').textContent = del;
-  // Updated lower real-time counter fields to fixed length of 2 decimals
   document.getElementById('fQty').textContent = qty.toFixed(2) + 'L';
   document.getElementById('fAmt').textContent = '₹' + amt.toFixed(2);
-  const total = Object.keys(S).length;
-  const pct   = total > 0 ? (del / total) * 100 : 0;
+  
+  // Calculate progress bar percentages strictly matching non-paused rows
+  const pct = activeTotal > 0 ? (del / activeTotal) * 100 : 0;
   const pb = document.getElementById('prog-bar');
   if (pb) pb.style.width = pct + '%';
 }

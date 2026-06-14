@@ -95,7 +95,7 @@
 .search-input:focus { outline: none; border-color: var(--primary); }
 .search-input::placeholder { color: var(--muted); }
 
-.area-select {
+.status-select, .area-select {
     height: 48px;
     border-radius: 14px;
     background: var(--bg);
@@ -106,7 +106,7 @@
     width: 100%;
     transition: background .3s, color .3s, border-color .3s;
 }
-.area-select:focus { outline: none; border-color: var(--primary); }
+.status-select:focus, .area-select:focus { outline: none; border-color: var(--primary); }
 
 /* ── DESKTOP TABLE CARD ── */
 .premium-table-card {
@@ -136,6 +136,10 @@
 .desktop-table tbody tr:last-child td { border-bottom: none; }
 .desktop-table tbody tr:hover { background: var(--table-head-bg); }
 
+/* Row background tint variations */
+.desktop-table tr.row-paused { background-color: rgba(245, 158, 11, 0.04); }
+.desktop-table tr.row-inactive { background-color: rgba(239, 68, 68, 0.04); opacity: 0.85; }
+
 .avatar-ui {
     width: 40px; height: 40px;
     background: var(--primary-pale);
@@ -144,9 +148,13 @@
     font-weight: 800; color: var(--primary-light);
     flex-shrink: 0;
 }
+.avatar-paused { background: var(--accent-light); color: var(--accent); }
+.avatar-inactive { background: var(--danger-light); color: var(--danger); }
 
-/* status badge helper — inline style was hardcoded, replaced with classes */
+/* Status pill setup */
+.badge-ui { display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
 .badge-active   { background: var(--success-light); color: #065f46; }
+.badge-paused   { background: var(--accent-light); color: #92400e; }
 .badge-inactive { background: var(--danger-light);  color: #991b1b; }
 
 @media (max-width: 992px) {
@@ -164,8 +172,20 @@
     margin-bottom: 15px;
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
     transition: background .3s, border-color .3s;
 }
+
+/* Accent strip indicators for mobile view cards */
+.mobile-cust-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; bottom: 0; width: 4px;
+}
+.card-active::before { background: var(--success); }
+.card-paused::before { background: var(--accent); }
+.card-inactive::before { background: var(--danger); }
 
 .m-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .m-name   { font-weight: 800; color: var(--text); }
@@ -214,12 +234,23 @@
 
 <div class="filter-section">
     <form method="get" style="display:flex; flex-wrap:wrap; gap:15px; align-items:flex-end;">
-        <div style="flex:2; min-width:250px;">
+        <div style="flex:2; min-width:220px;">
             <label style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block; letter-spacing:1px;">Quick Search</label>
             <input type="text" name="q" value="{{ q }}" id="liveInput" class="search-input"
                    placeholder="Name, phone or ID..." oninput="filterData(this.value)">
         </div>
-        <div style="flex:1; min-width:150px;">
+        
+        <div style="flex:1; min-width:140px;">
+            <label style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block; letter-spacing:1px;">Status</label>
+            <select name="status" class="status-select" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                <option value="paused" {% if status == 'paused' %}selected{% endif %}>Paused</option>
+                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+
+        <div style="flex:1; min-width:140px;">
             <label style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block; letter-spacing:1px;">Zone</label>
             <select name="area" class="area-select" onchange="this.form.submit()">
                 <option value="">All Zones</option>
@@ -262,7 +293,6 @@
     </aside>
 
     <main>
-        <!-- Desktop Table -->
         <div class="premium-table-card">
             <table class="desktop-table">
                 <thead>
@@ -276,10 +306,12 @@
                 </thead>
                 <tbody>
                     {% for c in page_obj %}
-                    <tr class="cust-row-ui" data-search="{{ c.name|lower }} {{ c.phone }} {{ c.customer_id|lower }}">
+                    <tr class="cust-row-ui {% if c.status == 'paused' %}row-paused{% elif c.status == 'inactive' %}row-inactive{% endif %}" data-search="{{ c.name|lower }} {{ c.phone }} {{ c.customer_id|lower }}">
                         <td>
                             <div style="display:flex; align-items:center; gap:15px;">
-                                <div class="avatar-ui">{{ c.name|first|upper }}</div>
+                                <div class="avatar-ui {% if c.status == 'paused' %}avatar-paused{% elif c.status == 'inactive' %}avatar-inactive{% endif %}">
+                                    {{ c.name|first|upper }}
+                                </div>
                                 <div>
                                     <div style="font-weight:800; color:var(--text);">{{ c.name }}</div>
                                     <div style="font-size:10px; color:var(--muted);">ID: {{ c.customer_id }}</div>
@@ -303,7 +335,7 @@
                             </div>
                         </td>
                         <td>
-                            <span class="badge {% if c.status == 'active' %}badge-active{% else %}badge-inactive{% endif %}">
+                            <span class="badge-ui {% if c.status == 'active' %}badge-active{% elif c.status == 'paused' %}badge-paused{% else %}badge-inactive{% endif %}">
                                 {{ c.status|upper }}
                             </span>
                         </td>
@@ -315,19 +347,28 @@
                             </div>
                         </td>
                     </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align:center; padding:30px; color:var(--muted);">No customers match your criteria.</td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
-        <!-- Mobile Cards -->
         <div class="mobile-view-container">
             {% for c in page_obj %}
-            <div class="mobile-cust-card" data-search="{{ c.name|lower }} {{ c.phone }} {{ c.customer_id|lower }}">
+            <div class="mobile-cust-card {% if c.status == 'active' %}card-active{% elif c.status == 'paused' %}card-paused{% else %}card-inactive{% endif %}" data-search="{{ c.name|lower }} {{ c.phone }} {{ c.customer_id|lower }}">
                 <div class="m-header">
-                    <div class="avatar-ui" style="width:35px; height:35px; font-size:12px;">{{ c.name|first|upper }}</div>
+                    <div class="avatar-ui {% if c.status == 'paused' %}avatar-paused{% elif c.status == 'inactive' %}avatar-inactive{% endif %}" style="width:35px; height:35px; font-size:12px;">
+                        {{ c.name|first|upper }}
+                    </div>
                     <div class="m-name">{{ c.name }}</div>
-                    <div style="margin-left:auto; font-size:16px;">{% if c.status == 'active' %}🟢{% else %}🔴{% endif %}</div>
+                    <div style="margin-left:auto; font-size:14px;">
+                        {% if c.status == 'active' %}🟢 
+                        {% elif c.status == 'paused' %}🟠 
+                        {% else %}🔴 {% endif %}
+                    </div>
                 </div>
                 <div class="m-body">
                     <div>

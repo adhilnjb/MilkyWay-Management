@@ -308,6 +308,27 @@ def subscription_toggle(request, pk):
 
 
 # ── DAILY DELIVERY ────────────────────────────────────────────────────────────
+def should_deliver_on(self, date):
+        # 1. If the customer is completely inactive, never deliver
+        if self.status == 'inactive':
+            return False
+            
+        # 2. If the customer is temporarily paused, do not deliver today
+        if self.status == 'paused':
+            return False
+
+        # 3. Otherwise, check their normal delivery schedule patterns
+        s = self.delivery_schedule
+        if s == 'daily':     return True
+        if s == 'alternate': return date.day % 2 == 1
+        if s == 'alt_even':  return date.day % 2 == 0
+        if s == 'weekdays':  return date.weekday() < 5
+        if s == 'weekends':  return date.weekday() >= 5
+        if s == 'thrice':    return date.weekday() in (0, 2, 4)
+        if s == 'twice':     return date.weekday() in (0, 3)
+        if s == 'custom':    return str(date.isoweekday()) in self.delivery_days.split(',')
+        return True
+
 @login_required
 def delivery_today(request):
     today    = datetime.date.today()
@@ -320,7 +341,9 @@ def delivery_today(request):
     filter_search   = request.GET.get('search','').strip()
     filter_schedule = request.GET.get('schedule','')
 
-    customers = (Customer.objects.filter(status='active')
+    # CHANGED: Changed filter(status='active') to exclude(status='inactive')
+    # This brings in both Active and Paused customers into the daily tracker list.
+    customers = (Customer.objects.exclude(status='inactive')
                  .select_related('default_product')
                  .prefetch_related(
                      Prefetch('subscriptions',
@@ -339,6 +362,7 @@ def delivery_today(request):
 
     rows = []
     for c in customers:
+        # If c.status is 'paused', your updated should_deliver_on() handles returning False
         scheduled = c.should_deliver_on(sel_date)
         subs = list(c.active_subscriptions)
 
@@ -358,7 +382,14 @@ def delivery_today(request):
             existing = deliveries_map.get(key)
             sub_rows.append({'sub': sub, 'delivery': existing})
 
-        row = {'customer': c, 'scheduled': scheduled, 'sub_rows': sub_rows}
+        # Pack row details along with the explicit user status
+        row = {
+            'customer': c, 
+            'scheduled': scheduled, 
+            'sub_rows': sub_rows,
+            'is_paused': (c.status == 'paused') # Helpful shortcut variable for your template
+        }
+        
         if filter_status == 'delivered':
             if not any(sr['delivery'] and sr['delivery'].is_delivered for sr in sub_rows):
                 continue
@@ -369,10 +400,13 @@ def delivery_today(request):
 
     total_delivered = sum(1 for r in rows if any(
         sr['delivery'] and sr['delivery'].is_delivered for sr in r['sub_rows']))
+    
     total_qty    = sum(Decimal(str(sr['delivery'].quantity)) for r in rows for sr in r['sub_rows']
                        if sr['delivery'] and sr['delivery'].is_delivered)
+    
     total_amount = sum(Decimal(str(sr['delivery'].amount)) for r in rows for sr in r['sub_rows']
                        if sr['delivery'] and sr['delivery'].is_delivered)
+    
     scheduled_count = sum(1 for r in rows if r['scheduled'])
     pending_count   = len(rows) - total_delivered
 
@@ -388,7 +422,6 @@ def delivery_today(request):
         'area_choices':     Customer.AREA_CHOICES,
         'schedule_choices': Customer.SCHEDULE_CHOICES,
     })
-
 
 @login_required
 def delivery_bulk_update(request):
@@ -763,35 +796,60 @@ def trip_summary(request):
 # ── BILLING ───────────────────────────────────────────────────────────────────
 @login_required
 def bill_list(request):
-    bills  = Bill.objects.select_related('customer').order_by('-year','-month','customer__name')
-    status = request.GET.get('status','')
-    q      = request.GET.get('q','')
-    month  = request.GET.get('month','')
-    year   = request.GET.get('year','')
+    # REMOVED customer__area from here because it's a standard text field
+    bills  = Bill.objects.select_related('customer').order_by('-year', '-month', 'customer__name')
+    
+    status = request.GET.get('status', '')
+    q      = request.GET.get('q', '')
+    month  = request.GET.get('month', '')
+    year   = request.GET.get('year', '')
+    area   = request.GET.get('area', '') # Capture selected area text
 
-    if status: bills = bills.filter(status=status)
-    if q:      bills = bills.filter(
-        Q(customer__name__icontains=q)|Q(bill_number__icontains=q)|
-        Q(customer__customer_id__icontains=q))
-    if month and month.isdigit(): bills = bills.filter(month=int(month))
-    if year  and year.isdigit():  bills = bills.filter(year=int(year))
+    # Apply filters
+    if status: 
+        bills = bills.filter(status=status)
+    if q:      
+        bills = bills.filter(
+            Q(customer__name__icontains=q) | 
+            Q(bill_number__icontains=q) |
+            Q(customer__customer_id__icontains=q)
+        )
+    if month and month.isdigit(): 
+        bills = bills.filter(month=int(month))
+    if year  and year.isdigit():  
+        bills = bills.filter(year=int(year))
+    if area:                      
+        bills = bills.filter(customer__area=area) # Filter directly by text match
 
+    # Pagination setup
     paginator   = Paginator(bills, 20)
     page_obj    = paginator.get_page(request.GET.get('page'))
 
+    # Recalculate/Sync data
     for b in page_obj:
         fresh = (b.total_amount - b.discount) + b.previous_balance
         if b.grand_total != fresh:
             Bill.objects.filter(pk=b.pk).update(grand_total=fresh)
             b.grand_total = fresh
 
-    total_receivable = bills.filter(status__in=['unpaid','partial']).aggregate(
-        res=Sum('grand_total'))['res'] or 0
+    # Totals computation
+    total_receivable = bills.filter(status__in=['unpaid', 'partial']).aggregate(
+        res=Sum('grand_total')
+    )['res'] or 0
+
+    # Dynamically extract all distinct, non-empty areas from your existing Customer directory
+    areas = Customer.objects.exclude(area__isnull=True).exclude(area='').values_list('area', flat=True).distinct().order_by('area')
 
     return render(request, 'delivery/bill_list.html', {
-        'page_obj': page_obj, 'status': status, 'q': q, 'month': month, 'year': year,
+        'page_obj': page_obj, 
+        'status': status, 
+        'q': q, 
+        'month': month, 
+        'year': year,
+        'area': area,      # Pass active area string back to keep form sticky
+        'areas': areas,    # Pass plain list of strings ['Area 1', 'Area 2', ...]
         'total_receivable': total_receivable,
-        'months': [(i, datetime.date(2000,i,1).strftime('%B')) for i in range(1,13)],
+        'months': [(i, datetime.date(2000, i, 1).strftime('%B')) for i in range(1, 13)],
         'today': datetime.date.today(),
     })
 

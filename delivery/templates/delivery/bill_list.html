@@ -96,13 +96,23 @@
 {% block content %}
 <div class="bill-list-container">
 
-    <!-- Filter Card -->
     <div class="card" style="padding: 20px;">
         <form method="get" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
             <div style="flex: 2; min-width: 200px;">
                 <label style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block; letter-spacing: 0.5px;">🔍 Find Invoice</label>
                 <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Customer name or bill #...">
             </div>
+            
+            <div style="flex: 1; min-width: 130px;">
+                <label style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block; letter-spacing: 0.5px;">📍 Area</label>
+                <select name="area" class="form-control" onchange="this.form.submit()">
+                    <option value="">All Areas</option>
+                    {% for a in areas %}
+                        <option value="{{ a }}" {% if area == a %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <div style="flex: 1; min-width: 130px;">
                 <label style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block; letter-spacing: 0.5px;">Status</label>
                 <select name="status" class="form-control" onchange="this.form.submit()">
@@ -128,7 +138,6 @@
         </form>
     </div>
 
-    <!-- Desktop Table -->
     <div class="card desktop-bill-table" style="overflow: hidden;">
         <div class="table-wrap">
             <table>
@@ -150,7 +159,7 @@
                         <td class="font-mono" style="font-weight:700; color:var(--primary-light);">#{{ b.bill_number }}</td>
                         <td>
                             <div style="font-weight:700;">{{ b.customer.name }}</div>
-                            <div style="font-size:10px; color:var(--muted);">ID: {{ b.customer.customer_id }}</div>
+                            <div style="font-size:10px; color:var(--muted);">ID: {{ b.customer.customer_id }}{% if b.customer.area %} • {{ b.customer.area }}{% endif %}</div>
                         </td>
                         <td style="font-size:12px; color:var(--muted);">{{ b.from_date|date:"M d" }} - {{ b.to_date|date:"M d" }}</td>
                         <td class="font-mono" style="font-weight:600;">₹{{ b.grand_total|floatformat:0 }}</td>
@@ -181,7 +190,6 @@
         </div>
     </div>
 
-    <!-- Mobile View -->
     <div class="mobile-bill-cards">
         {% for b in page_obj %}
         <div class="invoice-card {{ b.status }}">
@@ -207,7 +215,7 @@
             </div>
 
             <div style="font-size: 11px; color: var(--muted); margin-bottom: 12px; font-weight: 500;">
-                📅 {{ b.from_date|date:"d M" }} – {{ b.to_date|date:"d M, Y" }}
+                📅 {{ b.from_date|date:"d M" }} – {{ b.to_date|date:"d M, Y" }}{% if b.customer.area %} | 📍 {{ b.customer.area }}{% endif %}
             </div>
 
             <div class="inv-actions">
@@ -220,11 +228,10 @@
         {% endfor %}
     </div>
 
-    <!-- Pagination -->
     {% if page_obj.has_other_pages %}
     <div class="pagination">
         {% if page_obj.has_previous %}
-            <a href="?page={{ page_obj.previous_page_number }}&status={{ status }}&q={{ q }}&month={{ month }}" class="page-link">←</a>
+            <a href="?page={{ page_obj.previous_page_number }}&status={{ status }}&q={{ q }}&month={{ month }}&area={{ area }}" class="page-link">←</a>
         {% endif %}
         
         <span style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing: 1px;">
@@ -232,7 +239,7 @@
         </span>
 
         {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}&status={{ status }}&q={{ q }}&month={{ month }}" class="page-link">→</a>
+            <a href="?page={{ page_obj.next_page_number }}&status={{ status }}&q={{ q }}&month={{ month }}&area={{ area }}" class="page-link">→</a>
         {% endif %}
     </div>
     {% endif %}
