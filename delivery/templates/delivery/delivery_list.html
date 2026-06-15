@@ -9,150 +9,340 @@
 
 {% block extra_css %}
 <style>
-    /* ── DYNAMIC GRID SYSTEM ── */
-    .log-container { display: grid; grid-template-columns: 1fr; gap: 20px; }
+    .log-container { display: grid; grid-template-columns: 1fr; gap: 18px; }
 
     /* ── FILTER CARD ── */
     .filter-card {
-        background: var(--card);           /* was: white */
+        background: var(--card-bg);
         border-radius: var(--radius);
-        border: 1px solid var(--border);
-        box-shadow: var(--shadow);
-        padding: 20px;
+        border: 1px solid var(--card-border);
+        box-shadow: var(--shadow-sm);
+        padding: 20px 22px;
     }
-
+    .filter-title {
+        font-size: 11px; font-weight: 800;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--text-2);
+        margin-bottom: 14px;
+        display: flex; align-items: center; gap: 7px;
+    }
     .filter-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
+        grid-template-columns: 1.4fr 1fr 1fr 1fr auto;
+        gap: 12px;
         align-items: flex-end;
     }
+    .filter-label {
+        font-size: 10.5px; font-weight: 700;
+        color: var(--text-2);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 5px;
+        display: block;
+    }
+    .filter-select {
+        width: 100%; padding: 9px 13px;
+        border: 1.5px solid var(--border);
+        border-radius: 9px;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        background: var(--surface);
+        color: var(--text-1);
+        cursor: pointer;
+        outline: none;
+        transition: border-color .15s, box-shadow .15s;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 32px;
+    }
+    .filter-select:focus {
+        border-color: var(--teal);
+        box-shadow: 0 0 0 3px var(--teal-pale);
+    }
+    .filter-actions { display: flex; gap: 8px; align-items: flex-end; }
 
-    /* ── MOBILE TIMELINE CARDS ── */
+    /* Active filter chips */
+    .active-filters {
+        display: flex; gap: 8px; flex-wrap: wrap;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-2);
+    }
+    .active-chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: var(--teal-pale);
+        color: var(--teal);
+        font-size: 11px; font-weight: 700;
+        padding: 4px 10px 4px 10px;
+        border-radius: 99px;
+        border: 1px solid rgba(13,148,136,.2);
+    }
+    [data-theme="light"] .active-chip { color: var(--teal-dk); }
+    .active-chip a {
+        color: inherit; text-decoration: none;
+        opacity: .6; margin-left: 2px;
+        font-size: 13px; line-height: 1;
+    }
+    .active-chip a:hover { opacity: 1; }
+
+    /* ── SUMMARY BAR ── */
+    .summary-bar {
+        display: flex; gap: 12px;
+        overflow-x: auto; padding-bottom: 2px;
+    }
+    .summary-chip {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-sm);
+        padding: 12px 18px;
+        white-space: nowrap;
+        display: flex; align-items: center; gap: 12px;
+        box-shadow: var(--shadow-sm);
+        flex-shrink: 0;
+    }
+    .chip-icon {
+        width: 36px; height: 36px;
+        border-radius: 9px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 17px;
+    }
+    .chip-icon.teal   { background: var(--teal-pale); }
+    .chip-icon.amber  { background: var(--amber-pale); }
+    .chip-icon.indigo { background: var(--indigo-lt); }
+    .chip-label { font-size: 10px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: .05em; }
+    .chip-val   { font-size: 16px; font-weight: 900; color: var(--text-1); line-height: 1.2; margin-top: 1px; }
+    .chip-val.teal   { color: var(--teal); }
+    [data-theme="light"] .chip-val.teal { color: var(--teal-dk); }
+
+    /* ── DESKTOP TABLE ── */
+    .desktop-log { display: block; }
+    .desktop-log table { width: 100%; border-collapse: collapse; }
+    .desktop-log thead th {
+        background: var(--th-bg);
+        padding: 11px 18px;
+        text-align: left;
+        font-size: 10px; font-weight: 800;
+        text-transform: uppercase; letter-spacing: .07em;
+        color: var(--text-2);
+        border-bottom: 1px solid var(--border);
+    }
+    .desktop-log tbody td {
+        padding: 13px 18px;
+        border-bottom: 1px solid var(--tr-border);
+        color: var(--text-1); font-size: 13px;
+        vertical-align: middle;
+    }
+    .desktop-log tbody tr:last-child td { border-bottom: none; }
+    .desktop-log tbody tr { transition: background .13s; }
+    .desktop-log tbody tr:hover { background: var(--surface-2); }
+
+    .cust-name-link {
+        font-weight: 800; font-size: 13px;
+        text-decoration: none; color: var(--text-1);
+        transition: color .15s;
+    }
+    .cust-name-link:hover { color: var(--teal); }
+    .cust-id   { font-size: 10px; color: var(--text-2); margin-top: 2px; }
+    .area-tag  {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 10px; font-weight: 700;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        color: var(--text-2);
+        padding: 2px 8px; border-radius: 99px;
+        margin-top: 3px;
+    }
+
+    /* ── MOBILE TIMELINE ── */
     .mobile-log { display: none; }
 
     @media (max-width: 992px) {
         .desktop-log { display: none; }
-        .mobile-log { display: block; }
-
-        .log-item {
-            background: var(--card);       /* was: white */
-            border-radius: 18px;
-            padding: 16px;
-            margin-bottom: 12px;
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .log-date-box {
-            text-align: center;
-            padding-right: 15px;
-            border-right: 2px solid var(--border);  /* was: #f1f5f9 */
-            min-width: 65px;
-        }
-        .date-day { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
-        .date-num { font-size: 18px; font-weight: 900; color: var(--primary-light); }
-
-        .log-details { flex: 1; padding-left: 15px; }
-        .log-details h4 { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 2px; }
-        .log-details p  { font-size: 11px; color: var(--muted); }
-
-        .log-status { text-align: right; }
-        .log-amt { font-size: 15px; font-weight: 900; color: var(--text); display: block; margin-bottom: 5px; }
+        .mobile-log  { display: block; }
+        .filter-grid { grid-template-columns: 1fr 1fr; }
+        .filter-actions { grid-column: 1 / -1; }
+    }
+    @media (max-width: 600px) {
+        .filter-grid { grid-template-columns: 1fr; }
+        .summary-bar { gap: 10px; }
     }
 
-    /* ── DESKTOP TABLE ── */
-    .desktop-log table { width: 100%; border-collapse: collapse; }
-    .desktop-log th {
-        background: var(--table-head-bg);  /* was: #f8fafc */
-        padding: 12px 15px; text-align: left;
-        font-size: 11px; text-transform: uppercase;
-        color: var(--muted);
-        border-bottom: 2px solid var(--border);
-    }
-    .desktop-log td {
-        padding: 15px;
-        border-bottom: 1px solid var(--table-row-border);  /* was: #f1f5f9 */
-        vertical-align: middle;
-        color: var(--text);
-    }
-
-    /* ── SUMMARY CHIPS ── */
-    .summary-bar {
+    .log-item {
+        background: var(--card-bg);
+        border-radius: var(--radius-sm);
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        border: 1px solid var(--card-border);
+        box-shadow: var(--shadow-sm);
         display: flex;
-        gap: 15px;
-        margin-bottom: 15px;
-        overflow-x: auto;
-        padding-bottom: 5px;
-    }
-    .summary-chip {
-        background: var(--primary-pale);
-        padding: 10px 18px;
-        border-radius: 12px;
-        white-space: nowrap;
-        border: 1px solid rgba(13,115,119,.25);
-        display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 8px;
+        gap: 12px;
     }
-    .summary-chip .chip-val-primary { font-weight: 900; color: var(--primary-light); }
-    .summary-chip .chip-val-dark    { font-weight: 900; color: var(--text); }
+    .log-date-box {
+        text-align: center;
+        padding-right: 14px;
+        border-right: 1.5px solid var(--border);
+        min-width: 52px; flex-shrink: 0;
+    }
+    .date-day { font-size: 9px; font-weight: 800; color: var(--text-2); text-transform: uppercase; }
+    .date-num { font-size: 20px; font-weight: 900; color: var(--teal); line-height: 1.1; }
+    [data-theme="light"] .date-num { color: var(--teal-dk); }
+    .log-details { flex: 1; min-width: 0; padding-left: 12px; }
+    .log-details h4 { font-size: 13px; font-weight: 800; color: var(--text-1); margin-bottom: 2px; }
+    .log-details p  { font-size: 11px; color: var(--text-2); }
+    .log-area { font-size: 10px; color: var(--text-2); font-weight: 600; margin-top: 3px; }
+    .log-status { text-align: right; flex-shrink: 0; }
+    .log-amt { font-size: 14px; font-weight: 900; color: var(--text-1); display: block; margin-bottom: 5px; font-family: 'JetBrains Mono', monospace; }
+
+    /* ── PAGINATION ── */
+    .pagination {
+        display: flex; align-items: center; justify-content: center;
+        gap: 6px; padding: 4px 0;
+    }
+    .page-link {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 36px; height: 36px;
+        border-radius: 9px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text-1);
+        text-decoration: none; font-weight: 800; font-size: 15px;
+        transition: all .15s;
+    }
+    .page-link:hover { background: var(--teal); color: white; border-color: var(--teal); }
+    .page-info {
+        font-size: 11px; font-weight: 800;
+        color: var(--text-2); text-transform: uppercase;
+        letter-spacing: .06em; padding: 0 12px;
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+        text-align: center; padding: 56px 24px;
+        color: var(--text-2);
+    }
+    .empty-state .icon { font-size: 36px; margin-bottom: 12px; opacity: .5; }
+    .empty-state p { font-size: 13px; font-weight: 500; }
 </style>
 {% endblock %}
 
 {% block content %}
-
 <div class="log-container">
 
+    <!-- ── FILTER CARD ── -->
     <div class="filter-card">
-        <form method="get" class="filter-grid">
-            <div>
-                <label style="font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block;">Customer Search</label>
-                <input type="text" name="customer" value="{{ customer_q }}" class="form-control" placeholder="Search by name or ID...">
+        <div class="filter-title">🔍 Filter Deliveries</div>
+        <form method="get">
+            <div class="filter-grid">
+
+                <div>
+                    <label class="filter-label">Customer Name</label>
+                    <input type="text" name="customer" value="{{ customer_q }}"
+                           class="form-control" placeholder="Search by name or ID…">
+                </div>
+
+                <!-- ★ NEW: Area / Zone filter ★ -->
+                <div>
+                    <label class="filter-label">📍 Area / Zone</label>
+                    <select name="area" class="filter-select">
+                        <option value="">All Areas</option>
+                        {% for area in area_choices %}
+                            <option value="{{ area }}" {% if area == area_q %}selected{% endif %}>
+                                {{ area }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="filter-label">From Date</label>
+                    <input type="date" name="from" value="{{ date_from }}" class="form-control">
+                </div>
+
+                <div>
+                    <label class="filter-label">To Date</label>
+                    <input type="date" name="to" value="{{ date_to }}" class="form-control">
+                </div>
+
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">🔍 Filter</button>
+                    <a href="{% url 'delivery_list' %}" class="btn btn-secondary">✕</a>
+                </div>
+
             </div>
-            <div>
-                <label style="font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block;">From Date</label>
-                <input type="date" name="from" value="{{ date_from }}" class="form-control">
+
+            <!-- Active filter chips -->
+            {% if customer_q or area_q or date_from or date_to %}
+            <div class="active-filters">
+                {% if area_q %}
+                    <span class="active-chip">
+                        📍 {{ area_q }}
+                        <a href="?customer={{ customer_q }}&from={{ date_from }}&to={{ date_to }}">×</a>
+                    </span>
+                {% endif %}
+                {% if customer_q %}
+                    <span class="active-chip">
+                        👤 {{ customer_q }}
+                        <a href="?area={{ area_q }}&from={{ date_from }}&to={{ date_to }}">×</a>
+                    </span>
+                {% endif %}
+                {% if date_from %}
+                    <span class="active-chip">
+                        📅 From {{ date_from }}
+                        <a href="?area={{ area_q }}&customer={{ customer_q }}&to={{ date_to }}">×</a>
+                    </span>
+                {% endif %}
+                {% if date_to %}
+                    <span class="active-chip">
+                        📅 To {{ date_to }}
+                        <a href="?area={{ area_q }}&customer={{ customer_q }}&from={{ date_from }}">×</a>
+                    </span>
+                {% endif %}
             </div>
-            <div>
-                <label style="font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block;">To Date</label>
-                <input type="date" name="to" value="{{ date_to }}" class="form-control">
-            </div>
-            <div style="display:flex; gap:8px;">
-                <button type="submit" class="btn btn-primary" style="flex:2;">🔍 Filter</button>
-                <a href="{% url 'delivery_list' %}" class="btn btn-secondary" style="flex:1; text-align:center;">Clear</a>
-            </div>
+            {% endif %}
         </form>
     </div>
 
+    <!-- ── SUMMARY BAR ── -->
     {% if totals.qty %}
     <div class="summary-bar">
         <div class="summary-chip">
-            <span style="font-size:18px;">🥛</span>
+            <div class="chip-icon teal">🥛</div>
             <div>
-                <div style="font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase;">Total Volume</div>
-                <div class="chip-val-primary">{{ totals.qty|floatformat:1 }} Liters</div>
+                <div class="chip-label">Total Volume</div>
+                <div class="chip-val teal">{{ totals.qty|floatformat:1 }} L</div>
             </div>
         </div>
         <div class="summary-chip">
-            <span style="font-size:18px;">💰</span>
+            <div class="chip-icon amber">💰</div>
             <div>
-                <div style="font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase;">Total Revenue</div>
-                <div class="chip-val-dark">Rs. {{ totals.rev|floatformat:0 }}</div>
+                <div class="chip-label">Total Revenue</div>
+                <div class="chip-val">Rs. {{ totals.rev|floatformat:0 }}</div>
             </div>
         </div>
+        {% if area_q %}
+        <div class="summary-chip">
+            <div class="chip-icon indigo">📍</div>
+            <div>
+                <div class="chip-label">Filtered Area</div>
+                <div class="chip-val" style="font-size:13px;">{{ area_q }}</div>
+            </div>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 
+    <!-- ── DESKTOP TABLE ── -->
     <div class="card desktop-log">
         <table>
             <thead>
                 <tr>
                     <th>Date</th>
-                    <th>Customer Info</th>
+                    <th>Customer</th>
+                    <th>Area</th>
                     <th>Product</th>
                     <th>Qty</th>
                     <th>Amount</th>
@@ -162,14 +352,31 @@
             <tbody>
                 {% for d in page_obj %}
                 <tr>
-                    <td style="font-size:12px; font-weight:700; color:var(--muted);">{{ d.date|date:"d M Y" }}</td>
-                    <td>
-                        <a href="{% url 'customer_detail' d.customer.pk %}" style="font-weight:800; text-decoration:none; color:var(--text);">{{ d.customer.name }}</a>
-                        <div style="font-size:10px; color:var(--muted);">ID: {{ d.customer.customer_id }}</div>
+                    <td style="font-size:12px; font-weight:700; color:var(--text-2); white-space:nowrap;">
+                        {{ d.date|date:"d M Y" }}
                     </td>
-                    <td><span class="badge badge-info">{{ d.product.name|default:'Milk' }}</span></td>
-                    <td class="font-mono" style="font-weight:700;">{{ d.quantity }}L</td>
-                    <td class="font-mono" style="font-weight:800; color:var(--primary-light);">Rs. {{ d.amount|floatformat:0 }}</td>
+                    <td>
+                        <a href="{% url 'customer_detail' d.customer.pk %}" class="cust-name-link">
+                            {{ d.customer.name }}
+                        </a>
+                        <div class="cust-id">ID: {{ d.customer.customer_id }}</div>
+                    </td>
+                    <td>
+                        {% if d.customer.area %}
+                            <span class="area-tag">📍 {{ d.customer.area }}</span>
+                        {% else %}
+                            <span style="color:var(--text-3); font-size:12px;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-teal">{{ d.product.name|default:'Milk' }}</span>
+                    </td>
+                    <td class="font-mono" style="font-weight:700; color:var(--teal);">
+                        {{ d.quantity }}L
+                    </td>
+                    <td class="font-mono" style="font-weight:800; color:var(--text-1);">
+                        Rs. {{ d.amount|floatformat:0 }}
+                    </td>
                     <td>
                         {% if d.is_delivered %}
                             <span class="badge badge-success">✓ Delivered</span>
@@ -178,11 +385,21 @@
                         {% endif %}
                     </td>
                 </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7">
+                        <div class="empty-state">
+                            <div class="icon">🚚</div>
+                            <p>No delivery records found for the selected filters.</p>
+                        </div>
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
+    <!-- ── MOBILE CARDS ── -->
     <div class="mobile-log">
         {% for d in page_obj %}
         <div class="log-item">
@@ -194,16 +411,21 @@
             <div class="log-details">
                 <h4>{{ d.customer.name }}</h4>
                 <p>{{ d.product.name|default:'Milk' }} · {{ d.quantity }}L</p>
+                {% if d.customer.area %}
+                    <div class="log-area">📍 {{ d.customer.area }}</div>
+                {% endif %}
                 {% if not d.is_delivered %}
-                    <p style="color:var(--danger); font-weight:700;">Reason: {{ d.not_delivered_reason|default:'Not specified' }}</p>
+                    <p style="color:var(--danger); font-weight:700; margin-top:3px;">
+                        {{ d.not_delivered_reason|default:'Not specified' }}
+                    </p>
                 {% endif %}
             </div>
             <div class="log-status">
                 <span class="log-amt">Rs.{{ d.amount|floatformat:0 }}</span>
                 {% if d.is_delivered %}
-                    <span style="font-size:16px;">✅</span>
+                    <span style="font-size:18px;">✅</span>
                 {% else %}
-                    <span style="font-size:16px;">❌</span>
+                    <span style="font-size:18px;">❌</span>
                 {% endif %}
             </div>
         </div>
@@ -215,22 +437,18 @@
         {% endfor %}
     </div>
 
+    <!-- ── PAGINATION ── -->
     {% if page_obj.has_other_pages %}
     <div class="pagination">
         {% if page_obj.has_previous %}
-            <a href="?page={{ page_obj.previous_page_number }}&from={{ date_from }}&to={{ date_to }}&customer={{ customer_q }}" class="page-link">←</a>
+            <a href="?page={{ page_obj.previous_page_number }}&from={{ date_from }}&to={{ date_to }}&customer={{ customer_q }}&area={{ area_q }}" class="page-link">←</a>
         {% endif %}
-
-        <span style="font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; padding:0 15px;">
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-        </span>
-
+        <span class="page-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
         {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}&from={{ date_from }}&to={{ date_to }}&customer={{ customer_q }}" class="page-link">→</a>
+            <a href="?page={{ page_obj.next_page_number }}&from={{ date_from }}&to={{ date_to }}&customer={{ customer_q }}&area={{ area_q }}" class="page-link">→</a>
         {% endif %}
     </div>
     {% endif %}
 
 </div>
-
 {% endblock %}

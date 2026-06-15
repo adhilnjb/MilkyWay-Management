@@ -536,20 +536,36 @@ def delivery_quick_add(request):
 @login_required
 def delivery_list(request):
     qs         = DailyDelivery.objects.select_related('customer','product').order_by('-date')
-    date_from  = request.GET.get('from','')
-    date_to    = request.GET.get('to','')
-    customer_q = request.GET.get('customer','')
+    date_from  = request.GET.get('from', '')
+    date_to    = request.GET.get('to', '')
+    customer_q = request.GET.get('customer', '')
+    area_q     = request.GET.get('area', '')
+
     if date_from:  qs = qs.filter(date__gte=date_from)
     if date_to:    qs = qs.filter(date__lte=date_to)
     if customer_q: qs = qs.filter(
-        Q(customer__name__icontains=customer_q)|
+        Q(customer__name__icontains=customer_q) |
         Q(customer__customer_id__icontains=customer_q))
+    if area_q:     qs = qs.filter(customer__area__iexact=area_q)
+
     totals    = qs.filter(is_delivered=True).aggregate(qty=Sum('quantity'), rev=Sum('amount'))
+    area_choices = (Customer.objects
+                    .exclude(area__isnull=True)
+                    .exclude(area__exact='')
+                    .values_list('area', flat=True)
+                    .distinct()
+                    .order_by('area'))
+
     paginator = Paginator(qs, 25)
     page      = paginator.get_page(request.GET.get('page'))
     return render(request, 'delivery/delivery_list.html', {
-        'page_obj': page, 'date_from': date_from, 'date_to': date_to,
-        'customer_q': customer_q, 'totals': totals,
+        'page_obj':    page,
+        'date_from':   date_from,
+        'date_to':     date_to,
+        'customer_q':  customer_q,
+        'area_q':      area_q,
+        'area_choices': area_choices,
+        'totals':      totals,
     })
 
 
