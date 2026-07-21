@@ -20,6 +20,9 @@ from reportlab.platypus.flowables import Flowable
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from .models import Bill, DailyDelivery, Payment
+from django.core.signing import TimestampSigner, BadSignature, SignatureExpired
+from django.urls import reverse
+
 
 from .models import (Customer, CustomerSubscription, DailyDelivery,
                      Bill, Payment, MilkProduct, Notification,
@@ -1394,19 +1397,284 @@ def bill_pdf(request, pk):
  
     except Exception as e:
         return HttpResponse(f'PDF generation error: {e}', status=500)
+    signer = TimestampSigner(salt='bill-pdf-share')
+
+signer = TimestampSigner(salt='bill-pdf-share')
+
+def _bill_share_token(pk):
+    return signer.sign(str(pk))
+def _build_bill_pdf(bill):
+    """Builds the invoice PDF and returns (pdf_bytes, grand_total, amount_paid, amount_due)."""
+    deliveries = DailyDelivery.objects.filter(
+        customer=bill.customer,
+        date__gte=bill.from_date,
+        date__lte=bill.to_date,
+        is_delivered=True,
+    ).order_by('date').select_related('product')
+
+    stats = deliveries.aggregate(actual_qty=Sum('quantity'), actual_amt=Sum('amount'))
+    actual_total = stats['actual_amt'] or Decimal('0')
+    grand_total  = (actual_total - bill.discount) + bill.previous_balance
+
+    if bill.grand_total != grand_total or bill.total_amount != actual_total:
+        Bill.objects.filter(pk=bill.pk).update(
+            total_amount=actual_total,
+            total_quantity=stats['actual_qty'] or Decimal('0'),
+            grand_total=grand_total,
+        )
+        bill.total_amount = actual_total
+        bill.grand_total  = grand_total
+
+    amount_paid = (Payment.objects.filter(bill=bill)
+                   .aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+    amount_due  = max(Decimal('0.00'), grand_total - amount_paid)
+
+    PAGE_W, PAGE_H = A4
+    MARGIN    = 1.2 * cm
+    CONTENT_W = PAGE_W - 2 * MARGIN
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=MARGIN, rightMargin=MARGIN,
+        topMargin=1.0 * cm, bottomMargin=1.0 * cm,
+    )
+
+    sty = {
+        'brand'      : _s('brand',      'Poppins', 22, C_WHITE,     bold=True,  leading=26),
+        'brand_tag'  : _s('brand_tag',  'Poppins',  8, C_TEAL_LIGHT,             leading=12),
+        'inv_tag'    : _s('inv_tag',    'Poppins',  7, C_TEAL_LIGHT, align=2,   leading=10),
+        'inv_no'     : _s('inv_no',     'Poppins', 18, C_WHITE,     bold=True,  leading=22, align=2),
+        'inv_period' : _s('inv_period', 'Poppins',  8, C_TEAL_LIGHT, align=2,  leading=11),
+        'sec_lbl'    : _s('sec_lbl',    'Poppins',  7, C_MUTED,     bold=True,  leading=10),
+        'biz_name'   : _s('biz_name',   'Poppins', 10, C_TEAL_DARK, bold=True,  leading=14),
+        'biz_det'    : _s('biz_det',    'Poppins',  8, C_TEXT_MED,               leading=13),
+        'pay_lbl'    : _s('pay_lbl',    'Poppins',  7, C_MUTED,     bold=True,  leading=10),
+        'pay_val'    : _s('pay_val',    'Poppins',  9, C_TEAL_DARK, bold=True,  leading=13),
+        'cust_name'  : _s('cust_name',  'Poppins', 13, C_TEXT,      bold=True,  leading=17),
+        'cust_det'   : _s('cust_det',   'Poppins',  8, C_TEXT_MED,               leading=13),
+        'badge'      : _s('badge',      'Poppins',  7, C_WHITE,     bold=True,  leading=9, align=1),
+        'th'         : _s('th',         'Poppins',  8, C_WHITE,     bold=True,  leading=11),
+        'th_r'       : _s('th_r',       'Poppins',  8, C_WHITE,     bold=True,  leading=11, align=2),
+        'td'         : _s('td',         'Poppins',  8, C_TEXT,                   leading=12),
+        'td_r'       : _s('td_r',       'Poppins',  8, C_TEXT,                   leading=12, align=2),
+        'td_mono_r'  : _s('tdmr',       'DejaVuMono', 8, C_TEXT,                 leading=12, align=2),
+        'sum_lbl'    : _s('sum_lbl',    'Poppins',  7, C_MUTED,     bold=True,  leading=10, align=1),
+        'sum_val'    : _s('sum_val',    'DejaVu',  12, C_TEXT,                   leading=16, align=1),
+        'sum_val_b'  : _s('sum_val_b',  'DejaVu-Bold', 13, C_TEAL_DARK,         leading=16, align=1),
+        'due_lbl'    : _s('due_lbl',    'Poppins',  7, C_ORANGE,    bold=True,  leading=10, align=1),
+        'due_val'    : _s('due_val',    'DejaVu-Bold', 16, C_ORANGE,             leading=20, align=1),
+        'paid_val'   : _s('paid_val',   'DejaVu-Bold', 13, C_GREEN,             leading=16, align=1),
+        'footer'     : _s('footer',     'Poppins',  7, C_MUTED,                 leading=11, align=1),
+        'footer_b'   : _s('footer_b',   'Poppins',  7, C_TEAL_DARK, bold=True,  leading=11, align=1),
+        'gnote'      : _s('gnote',      'Poppins',  7, C_MUTED,                 leading=11, align=2),
+    }
+
+    story = []
+    Rs = '\u20b9'
+
+    month_label = bill.from_date.strftime('%B %Y')
+    date_range  = (f"{bill.from_date.strftime('%d %b')} \u2013 "
+                   f"{bill.to_date.strftime('%d %b %Y')}")
+
+    hdr_data = [[
+        [Paragraph('Milky Way Dairy', sty['brand']), Spacer(1, 3),
+         Paragraph('Fresh from farm to your door every morning', sty['brand_tag'])],
+        [Paragraph('INVOICE', sty['inv_tag']),
+         Paragraph(f'# {bill.bill_number}', sty['inv_no']),
+         Paragraph(f'{month_label}  \u2022  {date_range}', sty['inv_period'])],
+    ]]
+    ht = Table(hdr_data, colWidths=[CONTENT_W * 0.58, CONTENT_W * 0.42])
+    ht.setStyle(TableStyle([
+        ('BACKGROUND',    (0,0), (-1,-1), C_TEAL_DARK),
+        ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
+        ('LEFTPADDING',   (0,0), (0,0),   18),
+        ('RIGHTPADDING',  (1,0), (1,0),   18),
+        ('TOPPADDING',    (0,0), (-1,-1), 18),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 18),
+        ('ROUNDEDCORNERS', [8,8,8,8]),
+    ]))
+    story.extend([ht, Spacer(1, 0.4*cm)])
+
+    biz_col = [
+        Paragraph('FROM', sty['sec_lbl']), Spacer(1, 3),
+        Paragraph('Milky Way Dairy', sty['biz_name']),
+        Paragraph('Venduvazhy Junction, Kothamangalam', sty['biz_det']),
+        Paragraph('Ernakulam District, Kerala \u2014 686 691', sty['biz_det']),
+    ]
+    pay_inner = Table([
+        [Paragraph('GPay / PhonePe', sty['pay_lbl'])],
+        [Paragraph('9645311829', sty['pay_val'])],
+        [Spacer(1,4)],
+        [Paragraph('Account Name', sty['pay_lbl'])],
+        [Paragraph('Adhil Najeeb', sty['pay_val'])],
+        [Spacer(1,4)],
+        [Paragraph('UPI ID', sty['pay_lbl'])],
+        [Paragraph('adhilnajeeb469@okhdfcbank', sty['pay_val'])],
+    ], colWidths=[CONTENT_W * 0.40],
+       style=TableStyle([
+           ('LEFTPADDING',   (0,0),(-1,-1), 12),
+           ('RIGHTPADDING',  (0,0),(-1,-1), 12),
+           ('TOPPADDING',    (0,0),(-1,-1), 1),
+           ('BOTTOMPADDING', (0,0),(-1,-1), 1),
+           ('BACKGROUND',    (0,0),(-1,-1), C_GOLD_LIGHT),
+           ('LINELEFT',      (0,0),(-1,-1), 2, C_GOLD),
+           ('TOPPADDING',    (0,0),(-1,0),  10),
+           ('BOTTOMPADDING', (0,-1),(-1,-1),10),
+       ]))
+    pay_col = [Paragraph('PAYMENT DETAILS', sty['sec_lbl']), Spacer(1,4), pay_inner]
+
+    info_tab = Table([[biz_col, pay_col]], colWidths=[CONTENT_W*0.52, CONTENT_W*0.48])
+    info_tab.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),
+        ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0),
+    ]))
+    story.extend([info_tab, Spacer(1,0.4*cm), MilkDivider(CONTENT_W), Spacer(1,0.4*cm)])
+
+    st = bill.status
+    badge_bg  = C_GREEN if st=='paid' else (colors.HexColor('#1A5C8A') if st=='partial' else C_ORANGE)
+    badge_txt = bill.get_status_display().upper()
+    pill = Table([[Paragraph(badge_txt, sty['badge'])]],
+                 colWidths=[2.8*cm],
+                 style=TableStyle([
+                     ('BACKGROUND',(0,0),(-1,-1),badge_bg),
+                     ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
+                     ('ROUNDEDCORNERS',[5,5,5,5]),
+                 ]))
+    cust_left = [
+        Paragraph('BILLED TO', sty['sec_lbl']), Spacer(1,4),
+        Paragraph(bill.customer.name, sty['cust_name']),
+        Paragraph(f'Mob: {bill.customer.phone}', sty['cust_det']),
+        Paragraph(bill.customer.address[:100], sty['cust_det']),
+    ]
+    cust_right = [
+        Paragraph('STATUS', sty['sec_lbl']), Spacer(1,6), pill, Spacer(1,8),
+        Paragraph('BILL DATE', sty['sec_lbl']),
+        Paragraph(datetime.date.today().strftime('%d %B %Y'), sty['cust_det']),
+    ]
+    ct = Table([[cust_left, cust_right]], colWidths=[CONTENT_W*0.65, CONTENT_W*0.35])
+    ct.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),C_TEAL_LIGHT),
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('LEFTPADDING',(0,0),(-1,-1),14),('RIGHTPADDING',(0,0),(-1,-1),14),
+        ('TOPPADDING',(0,0),(-1,-1),14),('BOTTOMPADDING',(0,0),(-1,-1),14),
+        ('LINELEFT',(0,0),(0,-1),3,C_TEAL),
+        ('ROUNDEDCORNERS',[6,6,6,6]),
+    ]))
+    story.extend([ct, Spacer(1,0.55*cm)])
+
+    story.append(Paragraph('DELIVERY LOG', sty['sec_lbl']))
+    story.append(Spacer(1,4))
+
+    COL = [2.5*cm, 1.6*cm, 6.8*cm, 2.3*cm, 2.5*cm, 3.0*cm]
+    tbl_rows = [[
+        Paragraph('DATE',    sty['th']), Paragraph('DAY',     sty['th']),
+        Paragraph('PRODUCT', sty['th']), Paragraph('QTY',     sty['th_r']),
+        Paragraph('RATE',    sty['th_r']),Paragraph('AMOUNT', sty['th_r']),
+    ]]
+    for d in deliveries:
+        pname = d.product.name if d.product else 'Dairy Product'
+        tbl_rows.append([
+            Paragraph(d.date.strftime('%d %b %Y'), sty['td']),
+            Paragraph(d.date.strftime('%a'),        sty['td']),
+            Paragraph(pname,                        sty['td']),
+            Paragraph(f'{d.quantity} L',            sty['td_r']),
+            Paragraph(f'{d.price_per_unit:.2f}',sty['td_mono_r']),
+            Paragraph(f'{d.amount:.2f}''Rs',        sty['td_mono_r']),
+        ])
+
+    row_styles = [
+        ('BACKGROUND',(0,0),(-1,0),C_TEAL),
+        ('TOPPADDING',(0,0),(-1,0),8),('BOTTOMPADDING',(0,0),(-1,0),8),
+        ('TOPPADDING',(0,1),(-1,-1),5),('BOTTOMPADDING',(0,1),(-1,-1),5),
+        ('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('LINEBELOW',(0,0),(-1,-1),0.3,C_BORDER),
+        ('ROUNDEDCORNERS',[5,5,5,5]),
+    ]
+    for i in range(1, len(tbl_rows)):
+        row_styles.append(('BACKGROUND',(0,i),(-1,i), C_WHITE if i%2==1 else C_STRIPE))
+    dt = Table(tbl_rows, colWidths=COL, repeatRows=1)
+    dt.setStyle(TableStyle(row_styles))
+    story.extend([dt, Spacer(1,0.6*cm)])
+
+    CARD_W = CONTENT_W / 5
+    sum_data = [
+        [Paragraph('MONTH TOTAL',  sty['sum_lbl']),
+         Paragraph('PREV BALANCE', sty['sum_lbl']),
+         Paragraph('AMOUNT PAID',  sty['sum_lbl']),
+         Paragraph('AMOUNT DUE',   sty['due_lbl'])],
+        [Paragraph(f'{actual_total:.2f}', sty['sum_val_b']),
+         Paragraph(f'{bill.previous_balance:.2f}',sty['sum_val']),
+         Paragraph(f'{amount_paid:.2f}',  sty['paid_val']),
+         Paragraph(f'{amount_due:.2f}''Rs',   sty['due_val'])],
+    ]
+    sc = Table(sum_data, colWidths=[CARD_W]*5)
+    sc.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(3,-1),C_TEAL_LIGHT),
+        ('BACKGROUND',(4,0),(4,-1),C_ORANGE_BG),
+        ('TOPPADDING',(0,0),(-1,-1),10),('BOTTOMPADDING',(0,0),(-1,-1),10),
+        ('LEFTPADDING',(0,0),(-1,-1),4),('RIGHTPADDING',(0,0),(-1,-1),4),
+        ('LINEAFTER',(0,0),(3,-1),0.5,C_BORDER),
+        ('LINELEFT',(4,0),(4,-1),2,C_ORANGE),
+        ('ROUNDEDCORNERS',[6,6,6,6]),
+    ]))
+    story.append(KeepTogether([sc]))
+    story.append(Spacer(1,0.3*cm))
+    story.extend([Spacer(1,0.5*cm), MilkDivider(CONTENT_W), Spacer(1,0.3*cm)])
+
+    ft = Table([[
+        Paragraph('Thank you for choosing\nMilky Way Dairy!', sty['footer_b']),
+        Paragraph('Pay via GPay / PhonePe\n9645311829', sty['footer_b']),
+        Paragraph('Fresh milk delivered daily\nwith love and care', sty['footer']),
+    ]], colWidths=[CONTENT_W/3]*3)
+    ft.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4),
+        ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
+        ('LINEAFTER',(0,0),(1,-1),0.4,C_BORDER),
+    ]))
+    story.append(ft)
+
+    doc.build(story, onFirstPage=_draw_bg, onLaterPages=_draw_bg)
+    buf.seek(0)
+    return buf.getvalue(), grand_total, amount_paid, amount_due
+
+
+def bill_pdf_public(request, pk, token):
+    try:
+        unsigned_pk = signer.unsign(token, max_age=60 * 60 * 24 * 3)
+        if unsigned_pk != str(pk):
+            raise BadSignature
+    except (BadSignature, SignatureExpired):
+        return HttpResponse('Link expired or invalid.', status=403)
+
+    bill = get_object_or_404(Bill, pk=pk)
+    pdf_bytes, *_ = _build_bill_pdf(bill)
+    resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+    resp['Content-Disposition'] = f'inline; filename="MilkyWay_Invoice_{bill.bill_number}.pdf"'
+    return resp
+
 
 @login_required
 def bill_whatsapp(request, pk):
     bill  = get_object_or_404(Bill, pk=pk)
-    phone = bill.customer.phone.replace('+','').replace(' ','').replace('-','')
+    phone = bill.customer.phone.replace('+', '').replace(' ', '').replace('-', '')
     if not phone.startswith('91') and len(phone) == 10:
         phone = '91' + phone
+
+    public_url = request.build_absolute_uri(
+        reverse('bill_pdf_public', args=[bill.pk,_bill_share_token(bill.pk)])
+    )
+
     msg = (f"Dear {bill.customer.name},\n"
            f"Your Milky Way bill for {bill.from_date.strftime('%B %Y')}:\n"
            f"Bill No: {bill.bill_number}\n"
-           f"Total: Rs.{bill.net_amount}\nPrev Balance: Rs.{bill.previous_balance}\n"
-           f"Grand Total: Rs.{bill.grand_total}\nStatus: {bill.get_status_display()}\n"
-           f"Thank you!")
+           f"Grand Total: Rs.{bill.grand_total}\n"
+           f"Status: {bill.get_status_display()}\n\n"
+           f"View/download invoice: {public_url}\n\nThank you!")
+
     return redirect(f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}")
 
 

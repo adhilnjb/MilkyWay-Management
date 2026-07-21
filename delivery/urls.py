@@ -34,6 +34,8 @@ urlpatterns = [
     path('bills/<int:pk>/mark-paid/',    views.bill_mark_paid, name='bill_mark_paid'),
     path('bills/<int:pk>/whatsapp/',     views.bill_whatsapp,  name='bill_whatsapp'),
     path('api/bill/<int:pk>/status/',    views.api_bill_status, name='api_bill_status'),
+    path('bills/<int:pk>/pdf/public/<str:token>/', views.bill_pdf_public, name='bill_pdf_public'),   
+    
 
     # Payments
     path('payments/',                       views.payment_list,         name='payment_list'),
