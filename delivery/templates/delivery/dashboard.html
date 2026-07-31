@@ -18,31 +18,96 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
 
-  /* ── DESIGN TOKENS ── */
+  /* ── LIGHT MODE DEFAULTS ── */
   :root {
-    --milk-50:  #f0fdf4;
-    --milk-100: #dcfce7;
-    --teal:     #0d9488;
-    --teal-dk:  #0f766e;
-    --teal-lt:  #ccfbf1;
-    --amber:    #d97706;
-    --amber-lt: #fef3c7;
-    --rose:     #e11d48;
-    --rose-lt:  #ffe4e6;
-    --indigo:   #4f46e5;
-    --indigo-lt:#eef2ff;
-    --surface:  #ffffff;
-    --surface-2:#f8fafc;
-    --border:   #e2e8f0;
-    --border-2: #f1f5f9;
-    --text-1:   #0f172a;
-    --text-2:   #475569;
-    --text-3:   #94a3b8;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
-    --radius-sm: 10px;
-    --radius:    16px;
-    --radius-lg: 24px;
+    --milk-50:    #f0fdf4;
+    --milk-100:   #dcfce7;
+    --teal:       #0d9488;
+    --teal-dk:    #0f766e;
+    --teal-lt:    #ccfbf1;
+    --amber:      #d97706;
+    --amber-lt:   #fef3c7;
+    --rose:       #e11d48;
+    --rose-lt:    #ffe4e6;
+    --indigo:     #4f46e5;
+    --indigo-lt:  #eef2ff;
+    
+    /* Dynamic Theme Colors */
+    --bg-page:    #f8fafc;
+    --surface:    #ffffff;
+    --surface-2:  #f1f5f9;
+    --border:     #e2e8f0;
+    --border-2:   #f1f5f9;
+    --text-1:     #0f172a;
+    --text-2:     #475569;
+    --text-3:     #94a3b8;
+    --shadow-sm:  0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md:  0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+    --radius-sm:  10px;
+    --radius:     16px;
+    --radius-lg:  24px;
+
+    /* Chart Grid & Tooltip Colors */
+    --chart-grid: rgba(0,0,0,0.05);
+    --chart-tt-bg:#0f172a;
+    --chart-tt-txt:#ffffff;
+  }
+
+  /* ── DARK MODE OVERRIDES (Explicit class OR system settings) ── */
+  [data-theme="dark"], .dark-mode, body.dark-mode {
+    --bg-page:    #0f172a;
+    --surface:    #1e293b;
+    --surface-2:  #334155;
+    --border:     #334155;
+    --border-2:   #1e293b;
+    --text-1:     #f8fafc;
+    --text-2:     #cbd5e1;
+    --text-3:     #64748b;
+    --shadow-sm:  0 2px 4px rgba(0,0,0,0.3);
+    --shadow-md:  0 6px 20px rgba(0,0,0,0.4);
+
+    /* Soften Accents for Dark Backgrounds */
+    --teal-lt:    rgba(13, 148, 136, 0.25);
+    --amber-lt:   rgba(217, 119, 6, 0.25);
+    --rose-lt:    rgba(225, 29, 72, 0.25);
+    --indigo-lt:  rgba(79, 70, 229, 0.25);
+
+    --chart-grid: rgba(255,255,255,0.08);
+    --chart-tt-bg:#ffffff;
+    --chart-tt-txt:#0f172a;
+  }
+
+  /* Auto System Dark Mode preference */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg-page:    #0f172a;
+      --surface:    #1e293b;
+      --surface-2:  #334155;
+      --border:     #334155;
+      --border-2:   #1e293b;
+      --text-1:     #f8fafc;
+      --text-2:     #cbd5e1;
+      --text-3:     #64748b;
+      --shadow-sm:  0 2px 4px rgba(0,0,0,0.3);
+      --shadow-md:  0 6px 20px rgba(0,0,0,0.4);
+
+      --teal-lt:    rgba(13, 148, 136, 0.25);
+      --amber-lt:   rgba(217, 119, 6, 0.25);
+      --rose-lt:    rgba(225, 29, 72, 0.25);
+      --indigo-lt:  rgba(79, 70, 229, 0.25);
+
+      --chart-grid: rgba(255,255,255,0.08);
+      --chart-tt-bg:#ffffff;
+      --chart-tt-txt:#0f172a;
+    }
+  }
+
+  /* ── TOPBAR BUTTONS ── */
+  .topbar-btns {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
   /* ── PAGE WRAPPER ── */
@@ -65,6 +130,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 20px;
+    box-shadow: var(--shadow-md);
   }
   .dash-hero::before {
     content: '';
@@ -88,7 +154,7 @@
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    opacity: 0.75;
+    opacity: 0.85;
     margin-bottom: 6px;
   }
   .hero-title {
@@ -99,7 +165,7 @@
   }
   .hero-meta {
     display: flex;
-    gap: 20px;
+    gap: 10px;
     flex-wrap: wrap;
   }
   .hero-chip {
@@ -107,7 +173,7 @@
     align-items: center;
     gap: 6px;
     background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.25);
     border-radius: 99px;
     padding: 5px 12px;
     font-size: 12px;
@@ -157,7 +223,7 @@
     padding: 22px 20px 18px;
     position: relative;
     overflow: hidden;
-    transition: transform 0.18s, box-shadow 0.18s;
+    transition: transform 0.18s, box-shadow 0.18s, background-color 0.2s, border-color 0.2s;
     box-shadow: var(--shadow-sm);
   }
   .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
@@ -187,6 +253,7 @@
     align-items: center;
     justify-content: center;
     font-size: 17px;
+    flex-shrink: 0;
   }
   .kpi-value {
     font-size: 28px;
@@ -201,23 +268,14 @@
     font-weight: 600;
     color: var(--text-3);
   }
-  .kpi-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    font-size: 10px;
-    font-weight: 800;
-    padding: 2px 8px;
-    border-radius: 99px;
-  }
 
-  /* KPI color themes */
-  .kpi-teal  .kpi-accent { background: var(--teal); }
-  .kpi-teal  .kpi-icon-wrap { background: var(--teal-lt); }
-  .kpi-amber .kpi-accent { background: var(--amber); }
-  .kpi-amber .kpi-icon-wrap { background: var(--amber-lt); }
-  .kpi-rose  .kpi-accent { background: var(--rose); }
-  .kpi-rose  .kpi-icon-wrap { background: var(--rose-lt); }
+  /* KPI Color Themes */
+  .kpi-teal   .kpi-accent { background: var(--teal); }
+  .kpi-teal   .kpi-icon-wrap { background: var(--teal-lt); }
+  .kpi-amber  .kpi-accent { background: var(--amber); }
+  .kpi-amber  .kpi-icon-wrap { background: var(--amber-lt); }
+  .kpi-rose   .kpi-accent { background: var(--rose); }
+  .kpi-rose   .kpi-icon-wrap { background: var(--rose-lt); }
   .kpi-indigo .kpi-accent { background: var(--indigo); }
   .kpi-indigo .kpi-icon-wrap { background: var(--indigo-lt); }
 
@@ -228,6 +286,7 @@
     border-radius: var(--radius);
     box-shadow: var(--shadow-sm);
     overflow: hidden;
+    transition: background-color 0.2s, border-color 0.2s;
   }
   .panel-header {
     display: flex;
@@ -252,6 +311,7 @@
     justify-content: center;
     font-size: 14px;
     background: var(--teal-lt);
+    flex-shrink: 0;
   }
   .panel-action {
     font-size: 11px;
@@ -268,7 +328,7 @@
   .live-dot {
     display: inline-flex; align-items: center; gap: 5px;
     font-size: 10px; font-weight: 700; color: #10b981;
-    background: rgba(16,185,129,0.1); padding: 3px 8px;
+    background: rgba(16,185,129,0.15); padding: 3px 8px;
     border-radius: 99px;
   }
   .live-dot::before {
@@ -391,11 +451,11 @@
     font-weight: 700;
     color: var(--text-1);
   }
-  .cust-meta {
+  .cust-meta-mobile {
+    display: none;
     font-size: 10px;
     color: var(--text-3);
     margin-top: 2px;
-    font-weight: 500;
   }
   .del-qty {
     font-family: 'JetBrains Mono', monospace;
@@ -413,8 +473,8 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: rgba(16,185,129,0.1);
-    color: #059669;
+    background: rgba(16,185,129,0.15);
+    color: #10b981;
     font-size: 10px;
     font-weight: 800;
     padding: 4px 10px;
@@ -427,8 +487,8 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: rgba(239,68,68,0.1);
-    color: #dc2626;
+    background: rgba(239,68,68,0.15);
+    color: #f87171;
     font-size: 10px;
     font-weight: 800;
     padding: 4px 10px;
@@ -445,22 +505,61 @@
   .empty-state-icon { font-size: 28px; margin-bottom: 10px; opacity: 0.5; }
   .empty-state-text { font-size: 13px; font-weight: 500; }
 
-  /* ── RESPONSIVE ── */
+  /* ── RESPONSIVE MEDIA QUERIES ── */
   @media (max-width: 1100px) {
     .kpi-grid { grid-template-columns: repeat(2, 1fr); }
     .chart-row { grid-template-columns: 1fr; }
     .bottom-row { grid-template-columns: 1fr; }
   }
+
+  @media (max-width: 768px) {
+    .topbar-btns {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .topbar-btns .btn {
+      width: 100%;
+      justify-content: center;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+  }
+
   @media (max-width: 640px) {
-    .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .kpi-value { font-size: 22px; }
-    .dash-hero { flex-direction: column; align-items: flex-start; }
-    .hero-right { display: none; }
+    .mw-dash { padding-bottom: 20px; }
+    .dash-hero {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 20px;
+    }
+    .hero-title { font-size: 20px; }
+    .hero-right {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .hero-action {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
+    }
+    .kpi-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .kpi-card { padding: 14px 12px; }
+    .kpi-value { font-size: 20px; }
+    .kpi-label { font-size: 9px; }
+    .kpi-sub { font-size: 10px; }
+    
     .hide-mobile { display: none !important; }
-    .del-table { min-width: 420px; }
-    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .cust-meta-mobile { display: block; }
+    
     .panel-header { padding: 14px 16px; }
-    .del-table td, .del-table thead th { padding: 11px 14px; }
+    .del-table td, .del-table thead th { padding: 10px 12px; }
   }
 </style>
 {% endblock %}
@@ -479,10 +578,6 @@
         <div class="hero-chip">👥 {{ total_customers }} Customers</div>
       </div>
     </div>
-    <div class="hero-right">
-      <a href="{% url 'delivery_today' %}" class="hero-action hero-action-primary">🚚 Today's Route</a>
-      <a href="{% url 'bill_generate' %}" class="hero-action hero-action-ghost">🧾 Generate Bills</a>
-    </div>
   </div>
 
   <!-- ── KPI CARDS ── -->
@@ -495,7 +590,7 @@
         <div class="kpi-icon-wrap">👥</div>
       </div>
       <div class="kpi-value">{{ total_customers }}</div>
-      <div class="kpi-sub" style="color:#059669; font-weight:700;">● All routes active</div>
+      <div class="kpi-sub" style="color:#10b981; font-weight:700;">● All routes active</div>
     </div>
 
     <div class="kpi-card kpi-amber">
@@ -504,7 +599,7 @@
         <span class="kpi-label">Delivered Today</span>
         <div class="kpi-icon-wrap">🥛</div>
       </div>
-      <div class="kpi-value">{{ today_qty|floatformat:1 }}<span style="font-size:16px;font-weight:700;color:var(--text-2);margin-left:2px;">L</span></div>
+      <div class="kpi-value">{{ today_qty|floatformat:1 }}<span style="font-size:14px;font-weight:700;color:var(--text-2);margin-left:2px;">L</span></div>
       <div class="kpi-sub">Rs.{{ today_revenue|floatformat:0 }} collected today</div>
     </div>
 
@@ -514,7 +609,7 @@
         <span class="kpi-label">Monthly Volume</span>
         <div class="kpi-icon-wrap">📦</div>
       </div>
-      <div class="kpi-value">{{ month_qty|floatformat:0 }}<span style="font-size:16px;font-weight:700;color:var(--text-2);margin-left:2px;">L</span></div>
+      <div class="kpi-value">{{ month_qty|floatformat:0 }}<span style="font-size:14px;font-weight:700;color:var(--text-2);margin-left:2px;">L</span></div>
       <div class="kpi-sub">Rs.{{ month_revenue|floatformat:0 }} this month</div>
     </div>
 
@@ -603,7 +698,7 @@
         </div>
         <a href="{% url 'delivery_list' %}" class="panel-action">History →</a>
       </div>
-      <div class="table-scroll">
+      <div class="table-scroll" style="overflow-x: auto;">
         <table class="del-table">
           <thead>
             <tr>
@@ -619,7 +714,7 @@
             <tr>
               <td>
                 <div class="cust-name">{{ d.customer.name }}</div>
-                <div class="cust-meta hide-mobile-show">{{ d.date|date:"d M" }} · Rs.{{ d.amount|floatformat:0 }}</div>
+                <div class="cust-meta-mobile">{{ d.date|date:"d M" }} · Rs.{{ d.amount|floatformat:0 }}</div>
               </td>
               <td class="hide-mobile">
                 <span style="font-size:12px; color:var(--text-2); font-weight:600;">{{ d.date|date:"d M, Y" }}</span>
@@ -677,11 +772,13 @@
   document.getElementById('hero-title').innerHTML = `${emoji} ${label}<br><span style="opacity:.85;font-weight:700;">${sub}</span>`;
 })();
 
+// Helper function to read CSS variable values from JS
+const getCssVar = (varName) => getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+
 const teal   = '#0d9488';
 const amber  = '#d97706';
 const indigo = '#4f46e5';
 const rose   = '#e11d48';
-const text2  = '#94a3b8';
 
 // ── WEEKLY CHART ──
 const weekLabels = {{ chart_labels|safe }};
@@ -696,7 +793,7 @@ new Chart(document.getElementById('weekChart'), {
         type: 'bar',
         label: 'Liters (L)',
         data: weekQty,
-        backgroundColor: 'rgba(13,148,136,0.12)',
+        backgroundColor: 'rgba(13,148,136,0.2)',
         borderColor: teal,
         borderWidth: 2,
         borderRadius: 7,
@@ -708,7 +805,7 @@ new Chart(document.getElementById('weekChart'), {
         label: 'Revenue (₹)',
         data: weekRev,
         borderColor: amber,
-        backgroundColor: 'rgba(217,119,6,0.08)',
+        backgroundColor: 'rgba(217,119,6,0.1)',
         fill: true,
         tension: 0.45,
         borderWidth: 2.5,
@@ -729,7 +826,7 @@ new Chart(document.getElementById('weekChart'), {
         position: 'top',
         labels: {
           font: { family: 'Inter', weight: '700', size: 11 },
-          color: text2,
+          color: getCssVar('--text-2') || '#94a3b8',
           boxWidth: 10,
           boxHeight: 10,
           borderRadius: 3,
@@ -737,11 +834,9 @@ new Chart(document.getElementById('weekChart'), {
         }
       },
       tooltip: {
-        backgroundColor: '#0f172a',
-        titleColor: '#fff',
-        bodyColor: '#cbd5e1',
-        borderColor: '#1e293b',
-        borderWidth: 1,
+        backgroundColor: getCssVar('--chart-tt-bg') || '#0f172a',
+        titleColor: getCssVar('--chart-tt-txt') || '#fff',
+        bodyColor: getCssVar('--chart-tt-txt') || '#cbd5e1',
         padding: 12,
         titleFont: { family: 'Inter', weight: '700', size: 12 },
         bodyFont: { family: 'Inter', size: 12 },
@@ -751,12 +846,12 @@ new Chart(document.getElementById('weekChart'), {
     scales: {
       x: {
         grid: { display: false },
-        ticks: { color: text2, font: { family: 'Inter', weight: '600', size: 11 } }
+        ticks: { color: getCssVar('--text-3') || '#94a3b8', font: { family: 'Inter', weight: '600', size: 11 } }
       },
       y: {
         beginAtZero: true,
-        grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
-        ticks: { color: text2, font: { family: 'Inter', size: 10 } }
+        grid: { color: getCssVar('--chart-grid') || 'rgba(0,0,0,0.05)', drawBorder: false },
+        ticks: { color: getCssVar('--text-3') || '#94a3b8', font: { family: 'Inter', size: 10 } }
       },
       y1: {
         position: 'right',
@@ -778,9 +873,8 @@ if (areaRaw.length) {
       datasets: [{
         data: areaRaw.map(d => d.c),
         backgroundColor: [teal, amber, '#10b981', rose, indigo, '#8b5cf6'],
-        borderWidth: 4,
-        borderColor: '#ffffff',
-        hoverBorderColor: '#ffffff',
+        borderWidth: 3,
+        borderColor: getCssVar('--surface') || '#ffffff',
         hoverOffset: 6,
       }]
     },
@@ -793,41 +887,22 @@ if (areaRaw.length) {
           position: 'bottom',
           labels: {
             font: { family: 'Inter', weight: '700', size: 10 },
-            color: text2,
+            color: getCssVar('--text-2') || '#94a3b8',
             padding: 12,
             boxWidth: 9,
             boxHeight: 9,
           }
         },
         tooltip: {
-          backgroundColor: '#0f172a',
-          titleColor: '#fff',
-          bodyColor: '#cbd5e1',
+          backgroundColor: getCssVar('--chart-tt-bg') || '#0f172a',
+          titleColor: getCssVar('--chart-tt-txt') || '#fff',
+          bodyColor: getCssVar('--chart-tt-txt') || '#cbd5e1',
           cornerRadius: 10,
           padding: 10,
           titleFont: { family: 'Inter', weight: '700', size: 12 },
           bodyFont: { family: 'Inter', size: 12 },
         }
       }
-    }
-  });
-}
-
-// ── QUICK DELIVER (unchanged logic) ──
-function quickDeliver(custId, date) {
-  const btn = document.getElementById('qbtn-' + custId);
-  btn.innerHTML = '⏳';
-  fetch("{% url 'delivery_quick_add' %}", {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-    body: JSON.stringify({ customer_id: custId, date: date, is_delivered: true })
-  })
-  .then(r => r.json())
-  .then(d => {
-    if (d.success) {
-      btn.innerHTML = '✅';
-      btn.style.background = '#10b981';
-      setTimeout(() => location.reload(), 600);
     }
   });
 }

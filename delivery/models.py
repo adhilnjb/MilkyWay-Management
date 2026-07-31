@@ -220,8 +220,15 @@ class Bill(models.Model):
 
     @property
     def amount_due(self):
-        return max(Decimal('0'), self.grand_total - self.amount_paid)
+        # Allow negative values: negative means the customer overpaid (Advance)
+        return self.grand_total - self.amount_paid
 
+    @property
+    def advance_amount(self):
+        """Returns positive value of overpayment if amount_due is negative."""
+        if self.amount_due < Decimal('0'):
+            return abs(self.amount_due)
+        return Decimal('0')
 
 class Payment(models.Model):
     METHOD_CHOICES = [

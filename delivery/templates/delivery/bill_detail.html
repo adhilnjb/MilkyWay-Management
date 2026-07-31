@@ -42,10 +42,10 @@
         display: flex; align-items: center; gap: 12px; padding: 8px 16px;
         border-radius: 12px; text-decoration: none; transition: all 0.3s ease;
         border: 1px solid var(--border);
-        background: var(--card);                        /* was: white */
+        background: var(--card);
     }
-    .btn-share.whatsapp { border-color: #25D366; background: var(--success-light); } /* was: #f0fff4 */
-    .btn-share.pdf      { border-color: #ef4444; background: var(--danger-light); } /* was: #fff1f2 */
+    .btn-share.whatsapp { border-color: #25D366; background: var(--success-light); }
+    .btn-share.pdf      { border-color: #ef4444; background: var(--danger-light); }
     .btn-share:hover { transform: translateY(-2px); }
     .btn-share.whatsapp:hover { background: #25D366; color: white; }
     .btn-share.pdf:hover      { background: #ef4444; color: white; }
@@ -61,7 +61,7 @@
     }
 
     .premium-card {
-        background: var(--card);                        /* was: white */
+        background: var(--card);
         border-radius: 24px; padding: 24px;
         border: 1px solid var(--border);
         box-shadow: var(--shadow);
@@ -78,12 +78,12 @@
     .delivery-row {
         display: grid; grid-template-columns: 70px 1fr 100px;
         padding: 16px 24px;
-        border-bottom: 1px solid var(--table-row-border); /* was: #f1f5f9 */
+        border-bottom: 1px solid var(--table-row-border);
         align-items: center;
     }
     .date-box {
         text-align: center;
-        background: var(--table-head-bg);               /* was: #f8fafc */
+        background: var(--table-head-bg);
         border-radius: 12px; padding: 6px;
     }
     .date-num { font-size: 18px; font-weight: 900; color: var(--primary-light); }
@@ -93,18 +93,18 @@
     .delivery-header {
         padding: 20px 24px;
         border-bottom: 1px solid var(--border);
-        background: var(--table-head-bg);               /* was: #f8fafc */
+        background: var(--table-head-bg);
     }
     .delivery-header h3 { margin: 0; font-size: 15px; font-weight: 800; color: var(--text); }
 
     /* ── SETTLEMENT CARD ── */
     .settlement-card {
-        background: var(--table-head-bg);               /* was: #f8fafc */
+        background: var(--table-head-bg);
         border-radius: 20px; padding: 20px; margin: 15px 0;
     }
     .settlement-card span { color: var(--text); }
     .total-row {
-        border-top: 2px dashed var(--border);           /* was: #cbd5e1 */
+        border-top: 2px dashed var(--border);
         padding-top: 15px; font-size: 22px; font-weight: 900;
     }
 
@@ -114,7 +114,7 @@
         border-radius: 18px; text-align: center;
         border: 2.5px solid #10b981;
         color: #059669;
-        background: var(--success-light);               /* was: #f0fdf4 */
+        background: var(--success-light);
         width: 100%;
         font-family: inherit;
     }
@@ -123,7 +123,7 @@
     @media (max-width: 992px) {
         .desktop-action-bar {
             position: fixed; bottom: 0; left: 0; right: 0;
-            background: var(--card);                    /* was: white */
+            background: var(--card);
             padding: 12px 20px; display: grid;
             grid-template-columns: 1fr 1fr;
             box-shadow: 0 -10px 25px rgba(0,0,0,0.1);
@@ -162,10 +162,11 @@
                 </div>
                 <div style="padding-left:15px;">
                     <div style="font-weight:800; font-size:14px; color:var(--text);">{{ d.product.name|default:'Milk' }}</div>
-                    <div style="font-size:11px; color:var(--muted);">{{ d.quantity }}L x Rs.{{ d.price_per_unit }}</div>
+                    <div style="font-size:11px; color:var(--muted);">{{ d.quantity }}L x Rs.{{ d.price_per_unit|floatformat:2 }}</div>
                 </div>
-                <div style="text-align:right; font-weight:900; color:var(--text);">  <!-- was: var(--dark) -->
-                    Rs.{{ d.amount|floatformat:0 }}
+                <!-- CHANGED TO floatformat:2 FOR EXACT DECIMALS -->
+                <div style="text-align:right; font-weight:900; color:var(--text);">
+                    Rs.{{ d.amount|floatformat:2 }}
                 </div>
             </div>
             {% endfor %}
@@ -177,41 +178,40 @@
             <span style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase;">Amount Breakdown</span>
 
             <div class="settlement-card">
+                <!-- CHANGED TO floatformat:2 -->
                 <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px;">
                     <span>Volume Total</span>
-                    <span class="font-mono" style="color:var(--text);">Rs. {{ bill.total_amount|floatformat:0 }}</span>
+                    <span class="font-mono" style="color:var(--text);">Rs. {{ bill.total_amount|floatformat:2 }}</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px;">
                     <span>Arrears</span>
-                    <span class="font-mono" style="color:var(--danger);">+ Rs. {{ bill.previous_balance|floatformat:0 }}</span>
+                    <span class="font-mono" style="color:var(--danger);">+ Rs. {{ bill.previous_balance|floatformat:2 }}</span>
                 </div>
                 <div class="total-row" style="display:flex; justify-content:space-between;">
                     <span style="font-size:14px; font-weight:700; color:var(--text);">Payable</span>
-                    <span style="color:var(--primary-light);">Rs. {{ bill.grand_total|floatformat:0 }}</span>
+                    <span style="color:var(--primary-light);">Rs. {{ bill.grand_total|floatformat:2 }}</span>
                 </div>
             </div>
 
             {% if bill.status != 'paid' %}
-<div style="margin-top:25px;">
-    <form method="post" action="{% url 'bill_mark_paid' bill.pk %}">
-        {% csrf_token %}
-        <div class="form-group" style="margin-bottom:15px;">
-            <label style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:8px; display:block; text-align:center;">Collection Amount</label>
-            
-            <!-- ADDED step="any" TO PREVENT BROWSER ROUNDING/STEP WARNINGS -->
-            <input type="number" 
-            step="any" 
-             name="amount_override" 
-             class="collection-input"
-             value="{{ amount_due|floatformat:2 }}"
-             placeholder="0.00">
-        </div>
-        <button type="submit" class="btn-confirm-premium">
-            <span>✓ Confirm &amp; Mark Paid</span>
-        </button>
-    </form>
-</div>
-{% endif %}
+            <div style="margin-top:25px;">
+                <form method="post" action="{% url 'bill_mark_paid' bill.pk %}">
+                    {% csrf_token %}
+                    <div class="form-group" style="margin-bottom:15px;">
+                        <label style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:8px; display:block; text-align:center;">Collection Amount</label>
+                        <!-- ADDED step="any" AND UPDATED TO floatformat:2 -->
+                        <input type="number" 
+                               step="any" 
+                               name="amount_override" 
+                               class="collection-input"
+                               value="{{ amount_due|floatformat:2 }}">
+                    </div>
+                    <button type="submit" class="btn-confirm-premium">
+                        <span>✓ Confirm &amp; Mark Paid</span>
+                    </button>
+                </form>
+            </div>
+            {% endif %}
         </div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px;">

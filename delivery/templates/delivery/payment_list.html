@@ -1,7 +1,7 @@
 {% extends 'delivery/base.html' %}
 {% block title %}Payments – Milky Way Pro{% endblock %}
 {% block page_title %}Collections History{% endblock %}
-{% block page_sub %}Track and manage customer transactions{% endblock %}
+{% block page_sub %}Track customer transactions and balance status{% endblock %}
 
 {% block topbar_actions %}
 <a href="{% url 'payment_add' %}" class="btn btn-primary">➕ Record Payment</a>
@@ -36,6 +36,19 @@
         opacity: 0.1;
     }
 
+    /* ── ADVANCE BADGE ── */
+    .adv-badge {
+        display: inline-flex;
+        align-items: center;
+        background: var(--success-light);
+        color: #059669;
+        font-weight: 800;
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
     /* ── MOBILE PAYMENT CARDS ── */
     .mobile-payments { display: none; }
 
@@ -50,27 +63,53 @@
             margin-bottom: 16px;
             border: 1px solid var(--border);
             box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .pay-card-header {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 14px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
         }
 
         .pay-icon-box {
-            width: 52px; height: 52px;
+            width: 48px; height: 48px;
             background: var(--primary-pale);
-            border-radius: 16px;
+            border-radius: 14px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 24px; flex-shrink: 0;
+            font-size: 22px; flex-shrink: 0;
             border: 1.5px solid var(--primary);
         }
 
         .pay-info { flex: 1; }
-        .pay-info h4 { font-size: 15px; font-weight: 900; color: var(--text); margin-bottom: 4px; }
+        .pay-info h4 { font-size: 15px; font-weight: 900; color: var(--text); margin-bottom: 2px; }
         .pay-info p { font-size: 11px; color: var(--muted); font-weight: 600; }
 
-        .pay-value { text-align: right; }
-        .pay-amt { font-size: 18px; font-weight: 900; color: #059669; display: block; font-family: 'JetBrains Mono'; }
-        
+        /* Mobile Ledger Breakdown Matrix */
+        .pay-ledger-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 14px;
+            padding: 12px;
+            background: var(--table-head-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .ledger-item { text-align: center; }
+        .ledger-label { font-size: 9px; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+        .ledger-val { font-size: 13px; font-weight: 900; font-family: 'JetBrains Mono', monospace; }
+
+        .pay-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 14px;
+        }
+
         .filter-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -80,10 +119,10 @@
         .summary-box { flex-direction: column; text-align: center; gap: 15px; padding: 25px; }
     }
 
-    /* ── DESKTOP TABLE FIXES ── */
+    /* ── DESKTOP TABLE ── */
     .desktop-table table { width: 100%; }
-    .desktop-table th { font-size: 10px; font-weight: 800; }
-    .desktop-table td { padding: 18px 15px; }
+    .desktop-table th { font-size: 10px; font-weight: 800; text-transform: uppercase; }
+    .desktop-table td { padding: 16px 15px; vertical-align: middle; }
 
     /* ── FILTERS ── */
     .filter-card { 
@@ -105,7 +144,7 @@
     <div class="summary-box">
         <div style="z-index: 1;">
             <div style="font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">💰 TOTAL COLLECTIONS</div>
-            <div style="font-size: 13px; opacity: 0.85; font-weight: 600;">Showing aggregated revenue from filters</div>
+            <div style="font-size: 13px; opacity: 0.85; font-weight: 600;">Showing aggregated revenue from current filters</div>
         </div>
         <div style="z-index: 1; text-align: right;">
             <div class="font-mono" style="font-size: 36px; font-weight: 900; letter-spacing: -1px;">₹{{ total|floatformat:2 }}</div>
@@ -145,41 +184,98 @@
         </form>
     </div>
 
-    <!-- Desktop View -->
+    <!-- Desktop View Table -->
     <div class="card desktop-table">
         <div class="table-responsive">
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 140px;">Date</th>
+                        <th style="width: 120px;">Date</th>
                         <th>Customer Entity</th>
-                        <th>Amount Paid</th>
-                        <th>Channel</th>
-                        <th>Reference ID</th>
+                        <th>Channel &amp; Ref</th>
+                        <th>Bill Total</th>
+                        <th>Paid Now</th>
+                        <th>Balance / Advance</th>
                         <th style="text-align: right;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in page_obj %}
                     <tr>
-                        <td style="font-size:12px; font-weight:800; color:var(--muted); font-family: 'JetBrains Mono';">{{ p.payment_date|date:"d M Y" }}</td>
-                        <td>
-                            <a href="{% url 'customer_detail' p.customer.pk %}" style="font-weight:900; text-decoration:none; color:var(--text); font-size: 14px;">{{ p.customer.name }}</a>
-                            <div style="font-size:10px; color:var(--muted); font-weight: 700; margin-top: 2px;">CUST-{{ p.customer.customer_id }}</div>
+                        <!-- Payment Date -->
+                        <td style="font-size:12px; font-weight:800; color:var(--muted); font-family: 'JetBrains Mono';">
+                            {{ p.payment_date|date:"d M Y" }}
                         </td>
+
+                        <!-- Customer Info -->
                         <td>
-                            <div class="font-mono" style="font-size:16px; font-weight:900; color:#059669;">₹{{ p.amount|floatformat:0 }}</div>
+                            <a href="{% url 'customer_detail' p.customer.pk %}" style="font-weight:900; text-decoration:none; color:var(--text); font-size: 14px;">
+                                {{ p.customer.name }}
+                            </a>
+                            <div style="font-size:10px; color:var(--muted); font-weight: 700; margin-top: 2px;">
+                                CUST-{{ p.customer.customer_id }}{% if p.customer.area %} • {{ p.customer.area }}{% endif %}
+                            </div>
                         </td>
+
+                        <!-- Payment Method & Reference -->
                         <td>
-                            <span class="badge" style="background: var(--table-head-bg); color: var(--text); border: 1px solid var(--border); font-size: 10px; padding: 6px 12px;">
+                            <span class="badge" style="background: var(--table-head-bg); color: var(--text); border: 1px solid var(--border); font-size: 10px; padding: 5px 10px;">
                                 {% if p.payment_method == 'cash' %}💵{% elif p.payment_method == 'upi' %}📱{% else %}🏦{% endif %}
                                 {{ p.get_payment_method_display }}
                             </span>
+                            {% if p.reference_number %}
+                            <div class="font-mono" style="font-size:10px; color:var(--muted); margin-top: 4px; font-weight: 600;">
+                                Ref: {{ p.reference_number }}
+                            </div>
+                            {% endif %}
                         </td>
-                        <td class="font-mono" style="font-size:11px; color:var(--muted); font-weight: 600;">{{ p.reference_number|default:"—" }}</td>
+
+                        <!-- Bill Total (If linked to invoice) -->
+                        <td class="font-mono" style="font-size:14px; font-weight:700; color:var(--text);">
+                            {% if p.bill %}
+                                ₹{{ p.bill.grand_total|floatformat:2 }}
+                            {% else %}
+                                <span style="color:var(--muted); font-size:12px;">—</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Amount Paid in this Transaction -->
+                        <td>
+                            <div class="font-mono" style="font-size:15px; font-weight:900; color:#059669;">
+                                ₹{{ p.amount|floatformat:2 }}
+                            </div>
+                        </td>
+
+                        <!-- Current Outstanding Balance / Advance State -->
+                        <td class="font-mono" style="font-weight:800; font-size:14px;">
+                            {% if p.bill %}
+                                {% if p.bill.amount_due > 0 %}
+                                    <span style="color: var(--danger);">₹{{ p.bill.amount_due|floatformat:2 }}</span>
+                                {% elif p.bill.amount_due < 0 %}
+                                    <span class="adv-badge">+₹{{ p.bill.advance_amount|floatformat:2 }} Adv</span>
+                                {% else %}
+                                    <span style="color: var(--success);">₹0.00</span>
+                                {% endif %}
+                            {% else %}
+                                <!-- Fallback to Customer Account Balance if not linked directly to single bill -->
+                                {% if p.customer.balance > 0 %}
+                                    <span style="color: var(--danger);">₹{{ p.customer.balance|floatformat:2 }}</span>
+                                {% elif p.customer.balance < 0 %}
+                                    <span class="adv-badge">+₹{{ p.customer.advance_balance|floatformat:2 }} Adv</span>
+                                {% else %}
+                                    <span style="color: var(--success);">₹0.00</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+
+                        <!-- Action -->
                         <td style="text-align: right;">
-                            <a href="{% url 'payment_delete' p.pk %}" class="btn" style="background: var(--danger-light); color: var(--danger); padding: 8px 12px;" onclick="return confirm('Archive this payment record?')">🗑</a>
+                            <a href="{% url 'payment_delete' p.pk %}" class="btn" style="background: var(--danger-light); color: var(--danger); padding: 8px 12px;" onclick="return confirm('Archive this payment record?')" title="Delete Payment">🗑</a>
                         </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px; color: var(--muted);">No collection logs found for this filter.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -187,25 +283,75 @@
         </div>
     </div>
 
-    <!-- Mobile View -->
+    <!-- Mobile View Cards -->
     <div class="mobile-payments">
         {% for p in page_obj %}
         <div class="payment-card">
-            <div class="pay-icon-box">
-                {% if p.payment_method == 'cash' %}💵{% elif p.payment_method == 'upi' %}📱{% else %}🏦{% endif %}
-            </div>
-            <div class="pay-info">
-                <h4>{{ p.customer.name }}</h4>
-                <p>{{ p.payment_date|date:"d M Y" }} • {{ p.get_payment_method_display }}</p>
-                {% if p.reference_number %}
-                <div style="font-family: 'JetBrains Mono'; font-size: 9px; color: var(--primary); margin-top: 4px; background: var(--primary-pale); padding: 2px 6px; border-radius: 4px; display: inline-block;">
-                    ID: {{ p.reference_number }}
+            <!-- Header Info -->
+            <div class="pay-card-header">
+                <div class="pay-icon-box">
+                    {% if p.payment_method == 'cash' %}💵{% elif p.payment_method == 'upi' %}📱{% else %}🏦{% endif %}
                 </div>
-                {% endif %}
+                <div class="pay-info">
+                    <h4>{{ p.customer.name }}</h4>
+                    <p>{{ p.payment_date|date:"d M Y" }} • {{ p.get_payment_method_display }}</p>
+                </div>
             </div>
-            <div class="pay-value">
-                <span class="pay-amt">₹{{ p.amount|floatformat:0 }}</span>
-                <a href="{% url 'payment_delete' p.pk %}" style="text-decoration:none; font-size: 11px; font-weight: 800; color: var(--danger); margin-top: 8px; display: inline-block;" onclick="return confirm('Delete?')">REMOVE</a>
+
+            <!-- Ledger Breakdown Matrix (Bill Total, Paid, Balance) -->
+            <div class="pay-ledger-grid">
+                <div class="ledger-item">
+                    <div class="ledger-label">Bill Total</div>
+                    <div class="ledger-val" style="color: var(--text);">
+                        {% if p.bill %}
+                            ₹{{ p.bill.grand_total|floatformat:2 }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="ledger-item">
+                    <div class="ledger-label">Paid</div>
+                    <div class="ledger-val" style="color: #059669;">
+                        ₹{{ p.amount|floatformat:2 }}
+                    </div>
+                </div>
+
+                <div class="ledger-item">
+                    <div class="ledger-label">Balance</div>
+                    <div class="ledger-val">
+                        {% if p.bill %}
+                            {% if p.bill.amount_due > 0 %}
+                                <span style="color: var(--danger);">₹{{ p.bill.amount_due|floatformat:1 }}</span>
+                            {% elif p.bill.amount_due < 0 %}
+                                <span style="color: #059669;">+₹{{ p.bill.advance_amount|floatformat:1 }}</span>
+                            {% else %}
+                                <span style="color: var(--success);">₹0.00</span>
+                            {% endif %}
+                        {% else %}
+                            {% if p.customer.balance > 0 %}
+                                <span style="color: var(--danger);">₹{{ p.customer.balance|floatformat:1 }}</span>
+                            {% elif p.customer.balance < 0 %}
+                                <span style="color: #059669;">+₹{{ p.customer.advance_balance|floatformat:1 }}</span>
+                            {% else %}
+                                <span style="color: var(--success);">₹0.00</span>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Details -->
+            <div class="pay-card-footer">
+                <div>
+                    {% if p.reference_number %}
+                    <span style="font-family: 'JetBrains Mono'; font-size: 9px; color: var(--primary); background: var(--primary-pale); padding: 3px 8px; border-radius: 6px; font-weight: 700;">
+                        Ref: {{ p.reference_number }}
+                    </span>
+                    {% endif %}
+                </div>
+                <a href="{% url 'payment_delete' p.pk %}" style="text-decoration:none; font-size: 11px; font-weight: 800; color: var(--danger);" onclick="return confirm('Delete this payment record?')">REMOVE</a>
             </div>
         </div>
         {% empty %}
@@ -218,9 +364,9 @@
 
     <!-- Pagination System -->
     {% if page_obj.has_other_pages %}
-    <div class="pagination" style="justify-content: center; margin-top: 20px;">
+    <div class="pagination" style="display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 20px;">
         {% if page_obj.has_previous %}
-            <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&method={{ method }}&month={{ month }}" class="page-link">PREV</a>
+            <a href="?page={{ page_obj.previous_page_number }}&q={{ q }}&method={{ method }}&month={{ month }}" class="page-link" style="padding: 8px 16px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; font-weight: 800; text-decoration: none; color: var(--text);">PREV</a>
         {% endif %}
         
         <div style="background: var(--card); padding: 8px 20px; border-radius: 12px; border: 1px solid var(--border); font-size: 12px; font-weight: 900; color: var(--text);">
@@ -228,7 +374,7 @@
         </div>
 
         {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&method={{ method }}&month={{ month }}" class="page-link">NEXT</a>
+            <a href="?page={{ page_obj.next_page_number }}&q={{ q }}&method={{ method }}&month={{ month }}" class="page-link" style="padding: 8px 16px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; font-weight: 800; text-decoration: none; color: var(--text);">NEXT</a>
         {% endif %}
     </div>
     {% endif %}

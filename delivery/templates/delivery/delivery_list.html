@@ -320,7 +320,7 @@
             <div class="chip-icon amber">💰</div>
             <div>
                 <div class="chip-label">Total Revenue</div>
-                <div class="chip-val">Rs. {{ totals.rev|floatformat:0 }}</div>
+                <div class="chip-val">Rs. {{ totals.rev|floatformat:1  }}</div>
             </div>
         </div>
         {% if area_q %}
@@ -375,7 +375,7 @@
                         {{ d.quantity }}L
                     </td>
                     <td class="font-mono" style="font-weight:800; color:var(--text-1);">
-                        Rs. {{ d.amount|floatformat:0 }}
+                        Rs. {{ d.amount|floatformat:1 }}
                     </td>
                     <td>
                         {% if d.is_delivered %}
