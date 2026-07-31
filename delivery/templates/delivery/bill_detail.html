@@ -192,20 +192,26 @@
             </div>
 
             {% if bill.status != 'paid' %}
-            <div style="margin-top:25px;">
-                <form method="post" action="{% url 'bill_mark_paid' bill.pk %}">
-                    {% csrf_token %}
-                    <div class="form-group" style="margin-bottom:15px;">
-                        <label style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:8px; display:block; text-align:center;">Collection Amount</label>
-                        <input type="number" name="amount_override" class="collection-input"
-                               value="{{ amount_due|floatformat:2 }}">
-                    </div>
-                    <button type="submit" class="btn-confirm-premium">
-                        <span>✓ Confirm &amp; Mark Paid</span>
-                    </button>
-                </form>
-            </div>
-            {% endif %}
+<div style="margin-top:25px;">
+    <form method="post" action="{% url 'bill_mark_paid' bill.pk %}">
+        {% csrf_token %}
+        <div class="form-group" style="margin-bottom:15px;">
+            <label style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; margin-bottom:8px; display:block; text-align:center;">Collection Amount</label>
+            
+            <!-- ADDED step="any" TO PREVENT BROWSER ROUNDING/STEP WARNINGS -->
+            <input type="number" 
+            step="any" 
+             name="amount_override" 
+             class="collection-input"
+             value="{{ amount_due|floatformat:2 }}"
+             placeholder="0.00">
+        </div>
+        <button type="submit" class="btn-confirm-premium">
+            <span>✓ Confirm &amp; Mark Paid</span>
+        </button>
+    </form>
+</div>
+{% endif %}
         </div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px;">

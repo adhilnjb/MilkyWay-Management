@@ -1032,27 +1032,61 @@ def bill_delete(request, pk):
     })
 
 
+import datetime
+from decimal import Decimal, InvalidOperation
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.db.models import Sum
+from django.contrib.auth.decorators import login_required
+
+# Helper decimal conversion (safe rounding)
+def _dec(val):
+    try:
+        return Decimal(str(val)).quantize(Decimal('0.01'))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
 @login_required
 def bill_mark_paid(request, pk):
     bill = get_object_or_404(Bill, pk=pk)
+    
     if request.method == 'POST':
-        p   = request.POST
-        amt = (_dec(p.get('amount_override','').strip())
-               if p.get('amount_override','').strip() else bill.amount_due)
+        p = request.POST
+        raw_override = p.get('amount_override', '').strip()
+        
+        # Determine the target collection amount
+        if raw_override:
+            amt = _dec(raw_override)
+            if amt is None:
+                messages.error(request, 'Please enter a valid numeric payment amount.')
+                return redirect('bill_detail', pk=pk)
+        else:
+            amt = bill.amount_due
+
+        # Validation check
         if amt <= 0:
-            messages.warning(request, 'Bill is already fully paid.')
+            messages.warning(request, f'Cannot record a payment of ₹{amt}. Please enter an amount greater than zero.')
             return redirect('bill_detail', pk=pk)
+
+        # Create Payment Record
         Payment.objects.create(
-            customer=bill.customer, bill=bill, amount=amt,
-            payment_method=p.get('method','cash'),
-            reference_number=p.get('reference',''),
+            customer=bill.customer, 
+            bill=bill, 
+            amount=amt,
+            payment_method=p.get('method', 'cash'),
+            reference_number=p.get('reference', ''),
             payment_date=datetime.date.today(),
             received_by=request.user,
         )
-        paid = bill.payment_set.aggregate(t=Sum('amount'))['t'] or Decimal('0')
-        Bill.objects.filter(pk=bill.pk).update(
-            status='paid' if paid >= bill.grand_total else 'partial')
-        messages.success(request, f'Payment 💸{amt} recorded for Bill #{bill.bill_number}')
+
+        # Recalculate Totals & Update Status
+        paid = bill.payment_set.aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        new_status = 'paid' if paid >= bill.grand_total else 'partial'
+        
+        Bill.objects.filter(pk=bill.pk).update(status=new_status)
+
+        messages.success(request, f'Payment of ₹{amt} recorded for Bill #{bill.bill_number}')
+
     return redirect('bill_detail', pk=pk)
 
 
