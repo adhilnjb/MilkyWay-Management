@@ -1455,7 +1455,7 @@ def bill_pdf(request, pk):
  
     except Exception as e:
         return HttpResponse(f'PDF generation error: {e}', status=500)
-
+    
 @login_required
 def bill_whatsapp(request, pk):
     bill  = get_object_or_404(Bill, pk=pk)
