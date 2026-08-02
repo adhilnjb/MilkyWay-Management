@@ -1099,13 +1099,19 @@ class MilkDivider(Flowable):
         c.circle(mid, 4, 2.5, fill=1, stroke=0)
  
 def _s(name, font='Poppins', size=9, color=C_TEXT, bold=False,
-        align=0, leading=None, space_after=0):
+       align=0, leading=None, space_after=0):
     fn = _pf(font + ('-Bold' if bold else ''), 'Helvetica' + ('-Bold' if bold else ''))
     ss = getSampleStyleSheet()
-    return ParagraphStyle(name, parent=ss['Normal'],
-                          fontName=fn, fontSize=size, textColor=color,
-                          alignment=align, leading=leading or size * 1.4,
-                          spaceAfter=space_after)
+    return ParagraphStyle(
+        name,
+        parent=ss['Normal'],
+        fontName=fn,
+        fontSize=size,
+        textColor=color,
+        alignment=align,
+        leading=leading or (size * 1.4),
+        spaceAfter=space_after
+    )
  
 def _draw_bg(canvas_obj, doc):
     canvas_obj.saveState()
@@ -1403,10 +1409,12 @@ def bill_whatsapp(request, pk):
     phone = bill.customer.phone.replace('+','').replace(' ','').replace('-','')
     if not phone.startswith('91') and len(phone) == 10:
         phone = '91' + phone
+    
+    net_amt = bill.total_amount - bill.discount
     msg = (f"Dear {bill.customer.name},\n"
            f"Your Milky Way bill for {bill.from_date.strftime('%B %Y')}:\n"
            f"Bill No: {bill.bill_number}\n"
-           f"Total: Rs.{bill.net_amount}\nPrev Balance: Rs.{bill.previous_balance}\n"
+           f"Total: Rs.{net_amt}\nPrev Balance: Rs.{bill.previous_balance}\n"
            f"Grand Total: Rs.{bill.grand_total}\nStatus: {bill.get_status_display()}\n"
            f"Thank you!")
     return redirect(f"https://wa.me/{phone}?text={urllib.parse.quote(msg)}")
@@ -1749,7 +1757,7 @@ def reports(request):
 def api_customer_price(request, pk):
     c    = get_object_or_404(Customer, pk=pk)
     subs = [{'product': str(s.product), 'product_id': s.product.pk,
-              'qty': float(s.quantity), 'price': float(s.price)}
+              'qty': float(s.quantity), 'price': float(s.custom_price or s.product.default_price)}
              for s in c.active_subscriptions]
     return JsonResponse({
         'price': float(c.price_per_unit),
