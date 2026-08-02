@@ -1,4 +1,6 @@
-import io, datetime
+import io, datetime, json, calendar, urllib.parse
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
@@ -6,8 +8,7 @@ from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Sum, Count, Q, Prefetch, Avg
 from django.core.paginator import Paginator
-from decimal import Decimal, ROUND_HALF_UP
-import datetime, json, calendar, io, urllib.parse
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -19,16 +20,15 @@ from reportlab.platypus import (
 from reportlab.platypus.flowables import Flowable
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from .models import Bill, DailyDelivery, Payment
 
-from .models import (Customer, CustomerSubscription, DailyDelivery,
-                     Bill, Payment, MilkProduct, Notification,
-                     Expense, ExpenseCategory, DeliveryRoute)
+from .models import (
+    Customer, CustomerSubscription, DailyDelivery,
+    Bill, Payment, MilkProduct, Notification,
+    Expense, ExpenseCategory, DeliveryRoute
+)
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
-from decimal import Decimal, InvalidOperation
-
+# ── HELPERS ──────────────────────────────────────────────────────────────────
 def _dec(value, default='0'):
     """Safely convert a form value to Decimal, falling back to default."""
     if isinstance(value, str):
@@ -55,8 +55,11 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
     if request.method == 'POST':
-        user = authenticate(request, username=request.POST.get('username',''),
-                            password=request.POST.get('password',''))
+        user = authenticate(
+            request, 
+            username=request.POST.get('username', ''),
+            password=request.POST.get('password', '')
+        )
         if user:
             login(request, user)
             return redirect('dashboard')
@@ -143,10 +146,10 @@ def customer_list(request):
         Prefetch('subscriptions',
                  queryset=CustomerSubscription.objects.filter(is_active=True).select_related('product'))
     )
-    q        = request.GET.get('q','')
-    status   = request.GET.get('status','')
-    area     = request.GET.get('area','')
-    schedule = request.GET.get('schedule','')
+    q        = request.GET.get('q', '')
+    status   = request.GET.get('status', '')
+    area     = request.GET.get('area', '')
+    schedule = request.GET.get('schedule', '')
 
     if q:        qs = qs.filter(Q(name__icontains=q)|Q(phone__icontains=q)|Q(customer_id__icontains=q))
     if status:   qs = qs.filter(status=status)
@@ -166,21 +169,6 @@ def customer_list(request):
         'paused_count':   all_c.filter(status='paused').count(),
         'inactive_count': all_c.filter(status='inactive').count(),
     })
-
-
-# NOTE: _dec() (value + optional default, defined near the top of
-# this file) already covers this. Removed the duplicate definition
-# and duplicate imports that used to be here — keeping two copies
-# around is exactly what let the old broken version further down
-# silently take priority.
-
-
-# NOTE: _parse_date() (s, fallback=None) is already defined near the
-# top of this file. Removed the duplicate single-argument definition
-# that used to be here — it was silently overriding the original one
-# for every call in this file, which caused
-# "_parse_date() takes 1 positional argument but 2 were given" on
-# /delivery/ (and would break any other view passing a fallback).
 
 
 @login_required
@@ -229,28 +217,28 @@ def _create_or_update_customer(p, customer=None, user=None):
         customer = Customer()
         customer.created_by = user
 
-    customer.name            = p.get('name', '').strip()
-    customer.phone           = p.get('phone', '').strip()
-    customer.alternate_phone = p.get('alternate_phone', '').strip()
-    customer.email           = p.get('email', '').strip()
-    customer.address         = p.get('address', '').strip()
-    customer.area            = p.get('area', 'central')
-    customer.landmark        = p.get('landmark', '').strip()
-    customer.pincode         = p.get('pincode', '').strip()
+    customer.name              = p.get('name', '').strip()
+    customer.phone             = p.get('phone', '').strip()
+    customer.alternate_phone   = p.get('alternate_phone', '').strip()
+    customer.email             = p.get('email', '').strip()
+    customer.address           = p.get('address', '').strip()
+    customer.area              = p.get('area', 'central')
+    customer.landmark          = p.get('landmark', '').strip()
+    customer.pincode           = p.get('pincode', '').strip()
     customer.delivery_schedule = p.get('delivery_schedule', 'daily')
-    customer.delivery_time   = p.get('delivery_time', '06:00') or '06:00'
-    customer.delivery_days   = p.get('delivery_days', '1,2,3,4,5,6,7')
-    customer.opening_balance = _dec(p.get('opening_balance', '0'))
-    customer.credit_limit    = _dec(p.get('credit_limit', '5000'), '5000')
-    customer.status          = p.get('status', 'active')
-    customer.notes           = p.get('notes', '').strip()
-    customer.joining_date    = _parse_date(p.get('joining_date'))
+    customer.delivery_time     = p.get('delivery_time', '06:00') or '06:00'
+    customer.delivery_days     = p.get('delivery_days', '1,2,3,4,5,6,7')
+    customer.opening_balance   = _dec(p.get('opening_balance', '0'))
+    customer.credit_limit      = _dec(p.get('credit_limit', '5000'), '5000')
+    customer.status            = p.get('status', 'active')
+    customer.notes             = p.get('notes', '').strip()
+    customer.joining_date      = _parse_date(p.get('joining_date'))
 
     prod_id = p.get('default_product', '').strip()
-    customer.default_product = MilkProduct.objects.filter(pk=prod_id).first() if prod_id else None
-    customer.default_qty     = _dec(p.get('default_qty', '1'), '1')
+    customer.default_product   = MilkProduct.objects.filter(pk=prod_id).first() if prod_id else None
+    customer.default_qty       = _dec(p.get('default_qty', '1'), '1')
     cp = p.get('custom_price', '').strip()
-    customer.custom_price    = _dec(cp) if cp else None
+    customer.custom_price      = _dec(cp) if cp else None
 
     customer.save()
     return customer
@@ -329,27 +317,6 @@ def subscription_toggle(request, pk):
 
 
 # ── DAILY DELIVERY ────────────────────────────────────────────────────────────
-def should_deliver_on(self, date):
-        # 1. If the customer is completely inactive, never deliver
-        if self.status == 'inactive':
-            return False
-            
-        # 2. If the customer is temporarily paused, do not deliver today
-        if self.status == 'paused':
-            return False
-
-        # 3. Otherwise, check their normal delivery schedule patterns
-        s = self.delivery_schedule
-        if s == 'daily':     return True
-        if s == 'alternate': return date.day % 2 == 1
-        if s == 'alt_even':  return date.day % 2 == 0
-        if s == 'weekdays':  return date.weekday() < 5
-        if s == 'weekends':  return date.weekday() >= 5
-        if s == 'thrice':    return date.weekday() in (0, 2, 4)
-        if s == 'twice':     return date.weekday() in (0, 3)
-        if s == 'custom':    return str(date.isoweekday()) in self.delivery_days.split(',')
-        return True
-
 @login_required
 def delivery_today(request):
     today    = datetime.date.today()
@@ -357,13 +324,11 @@ def delivery_today(request):
     sel_date = _parse_date(date_str, today)
     date_str = sel_date.strftime('%Y-%m-%d')
 
-    filter_area     = request.GET.get('area','')
-    filter_status   = request.GET.get('status','')
-    filter_search   = request.GET.get('search','').strip()
-    filter_schedule = request.GET.get('schedule','')
+    filter_area     = request.GET.get('area', '')
+    filter_status   = request.GET.get('status', '')
+    filter_search   = request.GET.get('search', '').strip()
+    filter_schedule = request.GET.get('schedule', '')
 
-    # CHANGED: Changed filter(status='active') to exclude(status='inactive')
-    # This brings in both Active and Paused customers into the daily tracker list.
     customers = (Customer.objects.exclude(status='inactive')
                  .select_related('default_product')
                  .prefetch_related(
@@ -383,7 +348,6 @@ def delivery_today(request):
 
     rows = []
     for c in customers:
-        # If c.status is 'paused', your updated should_deliver_on() handles returning False
         scheduled = c.should_deliver_on(sel_date)
         subs = list(c.active_subscriptions)
 
@@ -403,12 +367,11 @@ def delivery_today(request):
             existing = deliveries_map.get(key)
             sub_rows.append({'sub': sub, 'delivery': existing})
 
-        # Pack row details along with the explicit user status
         row = {
             'customer': c, 
             'scheduled': scheduled, 
             'sub_rows': sub_rows,
-            'is_paused': (c.status == 'paused') # Helpful shortcut variable for your template
+            'is_paused': (c.status == 'paused')
         }
         
         if filter_status == 'delivered':
@@ -443,6 +406,7 @@ def delivery_today(request):
         'area_choices':     Customer.AREA_CHOICES,
         'schedule_choices': Customer.SCHEDULE_CHOICES,
     })
+
 
 @login_required
 def delivery_bulk_update(request):
@@ -528,7 +492,7 @@ def delivery_bulk_update(request):
 
     messages.success(request,
         f"Updated {updated_count} items for {sel_date.strftime('%d %b %Y')}. "
-        f"Total: {day_stats['q'] or 0:.1f}L | Revenue: 💸{day_stats['r'] or 0:,.2f}"
+        f"Total: {day_stats['q'] or 0:.1f}L | Revenue: ₹{day_stats['r'] or 0:,.2f}"
     )
     return redirect(f"/delivery/?date={date_str}")
 
@@ -593,23 +557,17 @@ def delivery_list(request):
 # ── TRIP-WISE DELIVERY ENTRY ──────────────────────────────────────────────────
 @login_required
 def trip_delivery_entry(request):
-    """
-    Delivery recording page filtered by DeliveryRoute (trip).
-    Shows each customer in the route with their active subscriptions.
-    Supports update_or_create so re-saving the same day is safe.
-    """
     today  = datetime.date.today()
     routes = DeliveryRoute.objects.filter(is_active=True).prefetch_related('customers')
 
     sel_date  = _parse_date(request.GET.get('date', today.strftime('%Y-%m-%d')), today)
-    sel_route = request.GET.get('route','').strip()
+    sel_route = request.GET.get('route', '').strip()
     route_obj = None
-    trip_rows = []   # [{customer, entries:[{sub, existing, default_qty, delivered}]}]
+    trip_rows = []
 
     if sel_route:
         route_obj = get_object_or_404(DeliveryRoute, pk=sel_route, is_active=True)
 
-        # All customers in this route, active only
         route_customers = (route_obj.customers
                            .filter(status='active')
                            .prefetch_related(
@@ -618,7 +576,6 @@ def trip_delivery_entry(request):
                                         .filter(is_active=True).select_related('product'))
                            ).order_by('name'))
 
-        # Pre-fetch all deliveries for this date+route in one query
         existing_map = {
             (d.customer_id, d.product_id): d
             for d in DailyDelivery.objects.filter(
@@ -633,7 +590,6 @@ def trip_delivery_entry(request):
 
             subs = list(customer.active_subscriptions)
 
-            # Fallback to legacy single product
             if not subs and customer.default_product:
                 class _FakeSub:
                     id = None
@@ -658,7 +614,6 @@ def trip_delivery_entry(request):
             if entries:
                 trip_rows.append({'customer': customer, 'entries': entries})
 
-    # ── POST: save deliveries ────────────────────────────────────────────────
     if request.method == 'POST' and request.POST.get('route_id'):
         post_route = get_object_or_404(DeliveryRoute, pk=request.POST['route_id'], is_active=True)
         post_date  = _parse_date(request.POST.get('date'), today)
@@ -666,7 +621,6 @@ def trip_delivery_entry(request):
         to_update = []
         to_create = []
 
-        # Collect keys from POST: qty_CUSTID_PRODID
         keys = set()
         for k in request.POST:
             if k.startswith('qty_'):
@@ -755,19 +709,15 @@ def trip_delivery_entry(request):
 # ── TRIP SUMMARY REPORT ───────────────────────────────────────────────────────
 @login_required
 def trip_summary(request):
-    """
-    Report page: for a given date + route shows each customer's
-    products/quantities and route-level product totals at the bottom.
-    """
     today  = datetime.date.today()
     routes = DeliveryRoute.objects.filter(is_active=True)
 
     sel_date  = _parse_date(request.GET.get('date', today.strftime('%Y-%m-%d')), today)
-    sel_route = request.GET.get('route','').strip()
+    sel_route = request.GET.get('route', '').strip()
     route_obj = None
 
     trip_customers     = []
-    product_totals     = {}   # {product_name: {qty, amount, unit}}
+    product_totals     = {}
     grand_total_qty    = Decimal('00.00')
     grand_total_amount = Decimal('0.00')
     not_delivered_count = 0
@@ -780,7 +730,6 @@ def trip_summary(request):
                       .select_related('customer','product')
                       .order_by('customer__name','product__name'))
 
-        # Group by customer
         customer_map = {}
         for d in deliveries:
             cid = d.customer_id
@@ -800,7 +749,6 @@ def trip_summary(request):
                 grand_total_qty    += d.quantity
                 grand_total_amount += d.amount
 
-                # Per-product totals across whole route
                 pname = d.product.name if d.product else 'Unknown'
                 unit  = d.product.unit if d.product else ''
                 if pname not in product_totals:
@@ -833,16 +781,14 @@ def trip_summary(request):
 # ── BILLING ───────────────────────────────────────────────────────────────────
 @login_required
 def bill_list(request):
-    # REMOVED customer__area from here because it's a standard text field
     bills  = Bill.objects.select_related('customer').order_by('-year', '-month', 'customer__name')
     
     status = request.GET.get('status', '')
     q      = request.GET.get('q', '')
     month  = request.GET.get('month', '')
     year   = request.GET.get('year', '')
-    area   = request.GET.get('area', '') # Capture selected area text
+    area   = request.GET.get('area', '')
 
-    # Apply filters
     if status: 
         bills = bills.filter(status=status)
     if q:      
@@ -856,25 +802,21 @@ def bill_list(request):
     if year  and year.isdigit():  
         bills = bills.filter(year=int(year))
     if area:                      
-        bills = bills.filter(customer__area=area) # Filter directly by text match
+        bills = bills.filter(customer__area=area)
 
-    # Pagination setup
     paginator   = Paginator(bills, 20)
     page_obj    = paginator.get_page(request.GET.get('page'))
 
-    # Recalculate/Sync data
     for b in page_obj:
         fresh = (b.total_amount - b.discount) + b.previous_balance
         if b.grand_total != fresh:
             Bill.objects.filter(pk=b.pk).update(grand_total=fresh)
             b.grand_total = fresh
 
-    # Totals computation
     total_receivable = bills.filter(status__in=['unpaid', 'partial']).aggregate(
         res=Sum('grand_total')
     )['res'] or 0
 
-    # Dynamically extract all distinct, non-empty areas from your existing Customer directory
     areas = Customer.objects.exclude(area__isnull=True).exclude(area='').values_list('area', flat=True).distinct().order_by('area')
 
     return render(request, 'delivery/bill_list.html', {
@@ -883,8 +825,8 @@ def bill_list(request):
         'q': q, 
         'month': month, 
         'year': year,
-        'area': area,      # Pass active area string back to keep form sticky
-        'areas': areas,    # Pass plain list of strings ['Area 1', 'Area 2', ...]
+        'area': area,
+        'areas': areas,
         'total_receivable': total_receivable,
         'months': [(i, datetime.date(2000, i, 1).strftime('%B')) for i in range(1, 13)],
         'today': datetime.date.today(),
@@ -992,7 +934,14 @@ def bill_detail(request, pk):
     payments   = Payment.objects.filter(bill=bill).order_by('-payment_date')
 
     current_stats       = deliveries.aggregate(actual_qty=Sum('quantity'), actual_amt=Sum('amount'))
-    amount_paid         = payments.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    
+    # Sum both direct and general customer payments
+    linked_paid   = payments.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    unlinked_paid = Payment.objects.filter(
+        customer=bill.customer, bill__isnull=True, payment_date__gte=bill.from_date
+    ).aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    amount_paid = linked_paid + unlinked_paid
+
     actual_grand_total  = (current_stats['actual_amt'] or Decimal('0')) - bill.discount + bill.previous_balance
 
     if bill.grand_total != actual_grand_total:
@@ -1033,7 +982,7 @@ def bill_edit(request, pk):
                       'paid' if paid >= bill.grand_total else
                       'partial' if paid > 0 else 'unpaid')
         Bill.objects.filter(pk=bill.pk).update(status=new_status, grand_total=bill.grand_total)
-        messages.success(request, f'Bill #{bill.bill_number} updated. Total: 💸{bill.grand_total:.2f}')
+        messages.success(request, f'Bill #{bill.bill_number} updated. Total: ₹{bill.grand_total:.2f}')
         return redirect('bill_detail', pk=pk)
     return render(request, 'delivery/bill_edit.html', {'bill': bill})
 
@@ -1053,25 +1002,6 @@ def bill_delete(request, pk):
     })
 
 
-import datetime
-from decimal import Decimal, InvalidOperation
-from django.shortcuts import get_object_or_404, redirect
-from django.contrib import messages
-from django.db.models import Sum
-from django.contrib.auth.decorators import login_required
-
-# NOTE: _dec() is already defined near the top of this file (accepts
-# value + optional default, returns Decimal). The old single-argument
-# version that used to live here has been removed — it was silently
-# overriding the correct one because it appeared later in the file,
-# which is what caused "_dec() takes 1 positional argument but 2 were
-# given" to keep happening even after the top-of-file fix.
-#
-# If any code below in this file relied on _dec() returning None on
-# invalid input (e.g. to show "Please enter a valid amount"), check
-# those call sites — the shared _dec() now returns the `default`
-# (0 by default) instead of None on invalid input.
-
 @login_required
 def bill_mark_paid(request, pk):
     bill = get_object_or_404(Bill, pk=pk)
@@ -1080,7 +1010,6 @@ def bill_mark_paid(request, pk):
         p = request.POST
         raw_override = p.get('amount_override', '').strip()
         
-        # Determine the target collection amount
         if raw_override:
             try:
                 amt = Decimal(raw_override)
@@ -1090,12 +1019,10 @@ def bill_mark_paid(request, pk):
         else:
             amt = bill.amount_due
 
-        # Validation check
         if amt <= 0:
             messages.warning(request, f'Cannot record a payment of ₹{amt}. Please enter an amount greater than zero.')
             return redirect('bill_detail', pk=pk)
 
-        # Create Payment Record
         Payment.objects.create(
             customer=bill.customer, 
             bill=bill, 
@@ -1106,7 +1033,6 @@ def bill_mark_paid(request, pk):
             received_by=request.user,
         )
 
-        # Recalculate Totals & Update Status
         paid = bill.payment_set.aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
         new_status = 'paid' if paid >= bill.grand_total else 'partial'
         
@@ -1117,6 +1043,7 @@ def bill_mark_paid(request, pk):
     return redirect('bill_detail', pk=pk)
 
 
+# ── REPORTLAB STYLING & FONTS ─────────────────────────────────────────────────
 def _register_fonts():
     try:
         pdfmetrics.registerFont(TTFont('Poppins',         '/usr/share/fonts/truetype/google-fonts/Poppins-Regular.ttf'))
@@ -1129,16 +1056,13 @@ def _register_fonts():
         pdfmetrics.registerFont(TTFont('DejaVuMono-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf'))
         return True
     except Exception:
-        return False   # fall back to Helvetica gracefully
+        return False
  
 _FONTS_OK = _register_fonts()
- 
  
 def _pf(poppins_name, fallback_name):
     return poppins_name if _FONTS_OK else fallback_name
  
- 
-# ── Colour Palette — warm cream + deep teal dairy theme ───────────────────────
 C_CREAM      = colors.HexColor('#FFFBF2')
 C_TEAL_DARK  = colors.HexColor('#0F4C5C')
 C_TEAL       = colors.HexColor("#0180B1")
@@ -1155,9 +1079,7 @@ C_GREEN      = colors.HexColor('#1A7A4A')
 C_ORANGE     = colors.HexColor('#C45900')
 C_ORANGE_BG  = colors.HexColor('#FFF3EA')
  
- 
 class MilkDivider(Flowable):
-    """Decorative divider with a small circle in the centre."""
     def __init__(self, width, color=C_BORDER):
         super().__init__()
         self.width = width
@@ -1176,7 +1098,6 @@ class MilkDivider(Flowable):
         c.setFillColor(C_CREAM)
         c.circle(mid, 4, 2.5, fill=1, stroke=0)
  
- 
 def _s(name, font='Poppins', size=9, color=C_TEXT, bold=False,
         align=0, leading=None, space_after=0):
     fn = _pf(font + ('-Bold' if bold else ''), 'Helvetica' + ('-Bold' if bold else ''))
@@ -1186,7 +1107,6 @@ def _s(name, font='Poppins', size=9, color=C_TEXT, bold=False,
                           alignment=align, leading=leading or size * 1.4,
                           spaceAfter=space_after)
  
- 
 def _draw_bg(canvas_obj, doc):
     canvas_obj.saveState()
     canvas_obj.setFillColor(C_CREAM)
@@ -1195,13 +1115,14 @@ def _draw_bg(canvas_obj, doc):
     canvas_obj.rect(0, 0, 0.3 * cm, A4[1], fill=1, stroke=0)
     canvas_obj.rect(A4[0] - 0.3 * cm, 0, 0.3 * cm, A4[1], fill=1, stroke=0)
     canvas_obj.restoreState()
- 
- 
+
+
+# ── BILL PDF GENERATION (CORRECTED) ──────────────────────────────────────────
 @login_required
 def bill_pdf(request, pk):
     bill = get_object_or_404(Bill, pk=pk)
  
-    # ── Recalculate totals live from delivery records ────────────────
+    # Recalculate live totals from deliveries
     deliveries = DailyDelivery.objects.filter(
         customer=bill.customer,
         date__gte=bill.from_date,
@@ -1214,7 +1135,6 @@ def bill_pdf(request, pk):
     net_amount   = actual_total - bill.discount
     grand_total  = net_amount + bill.previous_balance
  
-    # Sync stale bill record back to DB
     if bill.grand_total != grand_total or bill.total_amount != actual_total:
         Bill.objects.filter(pk=bill.pk).update(
             total_amount=actual_total,
@@ -1224,29 +1144,28 @@ def bill_pdf(request, pk):
         bill.total_amount = actual_total
         bill.grand_total  = grand_total
 
-    # ── FIXED: Calculate ALL payments (linked to this bill OR during bill period) ──
+    # 1. Direct payments linked to this bill
     linked_paid = (Payment.objects.filter(bill=bill)
-                   .aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+                   .aggregate(t=Sum('amount'))['t'] or Decimal('0.00'))
 
+    # 2. General customer payments made from bill start date onwards
     unlinked_paid = (Payment.objects.filter(
                         customer=bill.customer, 
                         bill__isnull=True,
                         payment_date__gte=bill.from_date,
-                        payment_date__lte=bill.to_date,
-                     ).aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+                     ).aggregate(t=Sum('amount'))['t'] or Decimal('0.00'))
 
     amount_paid = linked_paid + unlinked_paid
     amount_due  = max(Decimal('0.00'), grand_total - amount_paid)
 
-    # ── FIXED: Compute actual status dynamically based on total payments ──
-    if grand_total <= 0 or amount_paid >= grand_total:
+    # 3. Dynamic status calculation
+    if grand_total > Decimal('0.00') and amount_paid >= grand_total:
         actual_status = 'paid'
-    elif amount_paid > 0:
+    elif amount_paid > Decimal('0.00'):
         actual_status = 'partial'
     else:
         actual_status = 'unpaid'
 
-    # Sync status back to database if it changed
     if bill.status != actual_status:
         Bill.objects.filter(pk=bill.pk).update(status=actual_status)
         bill.status = actual_status
@@ -1263,7 +1182,6 @@ def bill_pdf(request, pk):
             topMargin=1.0 * cm, bottomMargin=1.0 * cm,
         )
  
-        # ── Styles ────────────────────────────────────────────────────────────
         sty = {
             'brand'      : _s('brand',      'Poppins', 22, C_WHITE,     bold=True,  leading=26),
             'brand_tag'  : _s('brand_tag',  'Poppins',  8, C_TEAL_LIGHT,             leading=12),
@@ -1295,7 +1213,6 @@ def bill_pdf(request, pk):
         }
  
         story = []
-        Rs = '\u20b9'
 
         # ── 1. HEADER ─────────────────────────────────────────────────────────
         month_label = bill.from_date.strftime('%B %Y')
@@ -1408,8 +1325,8 @@ def bill_pdf(request, pk):
                 Paragraph(d.date.strftime('%a'),        sty['td']),
                 Paragraph(pname,                        sty['td']),
                 Paragraph(f'{d.quantity} L',            sty['td_r']),
-                Paragraph(f'{d.price_per_unit:.2f}',sty['td_mono_r']),
-                Paragraph(f'{d.amount:.2f}',        sty['td_mono_r']),
+                Paragraph(f'{d.price_per_unit:.2f}',    sty['td_mono_r']),
+                Paragraph(f'{d.amount:.2f}',            sty['td_mono_r']),
             ])
  
         row_styles = [
@@ -1435,7 +1352,7 @@ def bill_pdf(request, pk):
              Paragraph('AMOUNT PAID',  sty['sum_lbl']),
              Paragraph('AMOUNT DUE',   sty['due_lbl'])],
             [Paragraph(f'{actual_total:.2f}', sty['sum_val_b']),
-             Paragraph(f'{bill.previous_balance:.2f}',sty['sum_val']),
+             Paragraph(f'{bill.previous_balance:.2f}', sty['sum_val']),
              Paragraph(f'{amount_paid:.2f}',  sty['paid_val']),
              Paragraph(f'{amount_due:.2f}',   sty['due_val'])],
         ]
@@ -1478,7 +1395,8 @@ def bill_pdf(request, pk):
  
     except Exception as e:
         return HttpResponse(f'PDF generation error: {e}', status=500)
-    
+
+
 @login_required
 def bill_whatsapp(request, pk):
     bill  = get_object_or_404(Bill, pk=pk)
@@ -1536,7 +1454,7 @@ def payment_add(request, customer_pk=None):
                     status='paid' if paid >= b.grand_total else 'partial')
             except Bill.DoesNotExist:
                 pass
-        messages.success(request, f'Payment of 💸{pmt.amount} recorded for {cust.name}')
+        messages.success(request, f'Payment of ₹{pmt.amount} recorded for {cust.name}')
         return redirect('customer_detail', pk=cust.pk)
     return render(request, 'delivery/payment_form.html', {
         'customers': customers, 'customer': customer, 'unpaid_bills': unpaid_bills,
@@ -1576,7 +1494,7 @@ def payment_delete(request, pk):
             Bill.objects.filter(pk=bill.pk).update(
                 status=('paid' if paid >= bill.grand_total and bill.grand_total > 0
                         else 'partial' if paid > 0 else 'unpaid'))
-        messages.success(request, f'Payment of 💸{amt} from {cust} deleted.')
+        messages.success(request, f'Payment of ₹{amt} from {cust} deleted.')
         return redirect('payment_list')
     return render(request, 'delivery/confirm_delete.html', {
         'object': payment, 'type': 'Payment',
@@ -1684,7 +1602,7 @@ def expense_add(request):
                 if 'receipt' in request.FILES:
                     exp.receipt = request.FILES['receipt']
                 exp.save()
-                messages.success(request, f'Expense "{exp.title}" of 💸{exp.amount} added!')
+                messages.success(request, f'Expense "{exp.title}" of ₹{exp.amount} added!')
                 return redirect('expense_list')
             except Exception as e:
                 messages.error(request, f'Error: {e}')
