@@ -27,12 +27,18 @@ from .models import (Customer, CustomerSubscription, DailyDelivery,
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
-def _dec(val, default='0'):
+from decimal import Decimal, InvalidOperation
+
+def _dec(value, default='0'):
+    """Safely convert a form value to Decimal, falling back to default."""
+    if isinstance(value, str):
+        value = value.strip()
+    if value in (None, ''):
+        value = default
     try:
-        v = Decimal(str(val).strip())
-        return v if v >= 0 else Decimal(default)
-    except Exception:
-        return Decimal(default)
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal(str(default))
 
 
 def _parse_date(s, fallback=None):
@@ -162,6 +168,51 @@ def customer_list(request):
     })
 
 
+from decimal import Decimal, InvalidOperation
+import datetime
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Sum
+
+from .models import Customer, MilkProduct, CustomerSubscription, DailyDelivery, Bill, Payment
+
+
+# ──────────────────────────────────────────────────────────────
+# FIX: _dec() now accepts an optional `default` argument.
+# This was the root cause of both the "can't add customer" and
+# "can't edit a paused customer" failures — every call site that
+# passed a default (e.g. _dec(value, '5000')) was crashing with
+# "TypeError: _dec() takes 1 positional argument but 2 were given",
+# which got swallowed by the try/except in the views and just
+# silently re-rendered the form with an error message.
+# ──────────────────────────────────────────────────────────────
+def _dec(value, default='0'):
+    """Safely convert a form value to Decimal, falling back to default."""
+    if isinstance(value, str):
+        value = value.strip()
+    if value in (None, ''):
+        value = default
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        try:
+            return Decimal(str(default))
+        except (InvalidOperation, ValueError, TypeError):
+            return Decimal('0')
+
+
+def _parse_date(value):
+    """Safely parse a YYYY-MM-DD date string from a form; returns None on failure/empty."""
+    if not value:
+        return None
+    try:
+        return datetime.datetime.strptime(value, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return None
+
+
 @login_required
 def customer_add(request):
     products = MilkProduct.objects.filter(is_active=True)
@@ -208,27 +259,27 @@ def _create_or_update_customer(p, customer=None, user=None):
         customer = Customer()
         customer.created_by = user
 
-    customer.name            = p.get('name','').strip()
-    customer.phone           = p.get('phone','').strip()
-    customer.alternate_phone = p.get('alternate_phone','').strip()
-    customer.email           = p.get('email','').strip()
-    customer.address         = p.get('address','').strip()
-    customer.area            = p.get('area','central')
-    customer.landmark        = p.get('landmark','').strip()
-    customer.pincode         = p.get('pincode','').strip()
-    customer.delivery_schedule = p.get('delivery_schedule','daily')
-    customer.delivery_time   = p.get('delivery_time','06:00') or '06:00'
-    customer.delivery_days   = p.get('delivery_days','1,2,3,4,5,6,7')
-    customer.opening_balance = _dec(p.get('opening_balance','0'))
-    customer.credit_limit    = _dec(p.get('credit_limit','5000'),'5000')
-    customer.status          = p.get('status','active')
-    customer.notes           = p.get('notes','').strip()
+    customer.name            = p.get('name', '').strip()
+    customer.phone           = p.get('phone', '').strip()
+    customer.alternate_phone = p.get('alternate_phone', '').strip()
+    customer.email           = p.get('email', '').strip()
+    customer.address         = p.get('address', '').strip()
+    customer.area            = p.get('area', 'central')
+    customer.landmark        = p.get('landmark', '').strip()
+    customer.pincode         = p.get('pincode', '').strip()
+    customer.delivery_schedule = p.get('delivery_schedule', 'daily')
+    customer.delivery_time   = p.get('delivery_time', '06:00') or '06:00'
+    customer.delivery_days   = p.get('delivery_days', '1,2,3,4,5,6,7')
+    customer.opening_balance = _dec(p.get('opening_balance', '0'))
+    customer.credit_limit    = _dec(p.get('credit_limit', '5000'), '5000')
+    customer.status          = p.get('status', 'active')
+    customer.notes           = p.get('notes', '').strip()
     customer.joining_date    = _parse_date(p.get('joining_date'))
 
-    prod_id = p.get('default_product','').strip()
+    prod_id = p.get('default_product', '').strip()
     customer.default_product = MilkProduct.objects.filter(pk=prod_id).first() if prod_id else None
-    customer.default_qty     = _dec(p.get('default_qty','1'), '1')
-    cp = p.get('custom_price','').strip()
+    customer.default_qty     = _dec(p.get('default_qty', '1'), '1')
+    cp = p.get('custom_price', '').strip()
     customer.custom_price    = _dec(cp) if cp else None
 
     customer.save()
@@ -271,11 +322,11 @@ def customer_detail(request, pk):
     month, year   = today.month, today.year
     subscriptions = customer.subscriptions.filter(is_active=True).select_related('product')
     deliveries    = DailyDelivery.objects.filter(customer=customer).select_related('product').order_by('-date')[:30]
-    bills         = Bill.objects.filter(customer=customer).order_by('-year','-month')
+    bills         = Bill.objects.filter(customer=customer).order_by('-year', '-month')
     payments      = Payment.objects.filter(customer=customer).order_by('-payment_date')[:10]
     month_qs      = DailyDelivery.objects.filter(customer=customer, date__month=month,
                                                   date__year=year, is_delivered=True)
-    month_qty     = month_qs.aggregate(q=Sum('quantity'))['q'] or Decimal('00.00')
+    month_qty     = month_qs.aggregate(q=Sum('quantity'))['q'] or Decimal('0.00')
     month_amt     = month_qs.aggregate(a=Sum('amount'))['a']   or Decimal('0.00')
     return render(request, 'delivery/customer_detail.html', {
         'customer': customer, 'subscriptions': subscriptions,
