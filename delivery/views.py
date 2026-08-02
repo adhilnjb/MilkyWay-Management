@@ -168,39 +168,11 @@ def customer_list(request):
     })
 
 
-from decimal import Decimal, InvalidOperation
-import datetime
-
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Sum
-
-from .models import Customer, MilkProduct, CustomerSubscription, DailyDelivery, Bill, Payment
-
-
-# ──────────────────────────────────────────────────────────────
-# FIX: _dec() now accepts an optional `default` argument.
-# This was the root cause of both the "can't add customer" and
-# "can't edit a paused customer" failures — every call site that
-# passed a default (e.g. _dec(value, '5000')) was crashing with
-# "TypeError: _dec() takes 1 positional argument but 2 were given",
-# which got swallowed by the try/except in the views and just
-# silently re-rendered the form with an error message.
-# ──────────────────────────────────────────────────────────────
-def _dec(value, default='0'):
-    """Safely convert a form value to Decimal, falling back to default."""
-    if isinstance(value, str):
-        value = value.strip()
-    if value in (None, ''):
-        value = default
-    try:
-        return Decimal(str(value))
-    except (InvalidOperation, ValueError, TypeError):
-        try:
-            return Decimal(str(default))
-        except (InvalidOperation, ValueError, TypeError):
-            return Decimal('0')
+# NOTE: _dec() (value + optional default, defined near the top of
+# this file) already covers this. Removed the duplicate definition
+# and duplicate imports that used to be here — keeping two copies
+# around is exactly what let the old broken version further down
+# silently take priority.
 
 
 def _parse_date(value):
@@ -1090,12 +1062,17 @@ from django.contrib import messages
 from django.db.models import Sum
 from django.contrib.auth.decorators import login_required
 
-# Helper decimal conversion (safe rounding)
-def _dec(val):
-    try:
-        return Decimal(str(val)).quantize(Decimal('0.01'))
-    except (InvalidOperation, TypeError, ValueError):
-        return None
+# NOTE: _dec() is already defined near the top of this file (accepts
+# value + optional default, returns Decimal). The old single-argument
+# version that used to live here has been removed — it was silently
+# overriding the correct one because it appeared later in the file,
+# which is what caused "_dec() takes 1 positional argument but 2 were
+# given" to keep happening even after the top-of-file fix.
+#
+# If any code below in this file relied on _dec() returning None on
+# invalid input (e.g. to show "Please enter a valid amount"), check
+# those call sites — the shared _dec() now returns the `default`
+# (0 by default) instead of None on invalid input.
 
 @login_required
 def bill_mark_paid(request, pk):
@@ -1107,8 +1084,9 @@ def bill_mark_paid(request, pk):
         
         # Determine the target collection amount
         if raw_override:
-            amt = _dec(raw_override)
-            if amt is None:
+            try:
+                amt = Decimal(raw_override)
+            except (InvalidOperation, ValueError, TypeError):
                 messages.error(request, 'Please enter a valid numeric payment amount.')
                 return redirect('bill_detail', pk=pk)
         else:
