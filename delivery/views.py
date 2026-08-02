@@ -1226,6 +1226,22 @@ def bill_pdf(request, pk):
  
     amount_paid = (Payment.objects.filter(bill=bill)
                    .aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+
+    # FIX: a payment can be recorded without being linked to a specific
+    # bill (e.g. via the general "Add Payment" form when no bill is
+    # picked). If that happened, the direct bill=bill lookup above
+    # comes back 0 even though the bill's status is 'partial'/'paid'.
+    # Fall back to also counting this customer's unlinked payments
+    # made during the bill's period, so the PDF reflects what was
+    # actually collected instead of showing ₹0.00.
+    if amount_paid == 0 and bill.status in ('partial', 'paid'):
+        unlinked_paid = (Payment.objects.filter(
+                              customer=bill.customer, bill__isnull=True,
+                              payment_date__gte=bill.from_date,
+                              payment_date__lte=bill.to_date,
+                          ).aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+        amount_paid = unlinked_paid
+
     amount_due  = max(Decimal('0.00'), grand_total - amount_paid)
  
     try:
@@ -1455,7 +1471,7 @@ def bill_pdf(request, pk):
  
     except Exception as e:
         return HttpResponse(f'PDF generation error: {e}', status=500)
-    
+
 @login_required
 def bill_whatsapp(request, pk):
     bill  = get_object_or_404(Bill, pk=pk)
