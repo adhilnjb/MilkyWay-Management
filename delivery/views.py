@@ -175,14 +175,12 @@ def customer_list(request):
 # silently take priority.
 
 
-def _parse_date(value):
-    """Safely parse a YYYY-MM-DD date string from a form; returns None on failure/empty."""
-    if not value:
-        return None
-    try:
-        return datetime.datetime.strptime(value, '%Y-%m-%d').date()
-    except (ValueError, TypeError):
-        return None
+# NOTE: _parse_date() (s, fallback=None) is already defined near the
+# top of this file. Removed the duplicate single-argument definition
+# that used to be here — it was silently overriding the original one
+# for every call in this file, which caused
+# "_parse_date() takes 1 positional argument but 2 were given" on
+# /delivery/ (and would break any other view passing a fallback).
 
 
 @login_required
