@@ -1201,7 +1201,7 @@ def _draw_bg(canvas_obj, doc):
 def bill_pdf(request, pk):
     bill = get_object_or_404(Bill, pk=pk)
  
-    # ── BUG FIX: recalculate live from actual delivery records ────────────────
+    # ── Recalculate totals live from delivery records ────────────────
     deliveries = DailyDelivery.objects.filter(
         customer=bill.customer,
         date__gte=bill.from_date,
@@ -1223,26 +1223,33 @@ def bill_pdf(request, pk):
         )
         bill.total_amount = actual_total
         bill.grand_total  = grand_total
- 
-    amount_paid = (Payment.objects.filter(bill=bill)
+
+    # ── FIXED: Calculate ALL payments (linked to this bill OR during bill period) ──
+    linked_paid = (Payment.objects.filter(bill=bill)
                    .aggregate(t=Sum('amount'))['t'] or Decimal('0'))
 
-    # FIX: a payment can be recorded without being linked to a specific
-    # bill (e.g. via the general "Add Payment" form when no bill is
-    # picked). If that happened, the direct bill=bill lookup above
-    # comes back 0 even though the bill's status is 'partial'/'paid'.
-    # Fall back to also counting this customer's unlinked payments
-    # made during the bill's period, so the PDF reflects what was
-    # actually collected instead of showing ₹0.00.
-    if amount_paid == 0 and bill.status in ('partial', 'paid'):
-        unlinked_paid = (Payment.objects.filter(
-                              customer=bill.customer, bill__isnull=True,
-                              payment_date__gte=bill.from_date,
-                              payment_date__lte=bill.to_date,
-                          ).aggregate(t=Sum('amount'))['t'] or Decimal('0'))
-        amount_paid = unlinked_paid
+    unlinked_paid = (Payment.objects.filter(
+                        customer=bill.customer, 
+                        bill__isnull=True,
+                        payment_date__gte=bill.from_date,
+                        payment_date__lte=bill.to_date,
+                     ).aggregate(t=Sum('amount'))['t'] or Decimal('0'))
 
+    amount_paid = linked_paid + unlinked_paid
     amount_due  = max(Decimal('0.00'), grand_total - amount_paid)
+
+    # ── FIXED: Compute actual status dynamically based on total payments ──
+    if grand_total <= 0 or amount_paid >= grand_total:
+        actual_status = 'paid'
+    elif amount_paid > 0:
+        actual_status = 'partial'
+    else:
+        actual_status = 'unpaid'
+
+    # Sync status back to database if it changed
+    if bill.status != actual_status:
+        Bill.objects.filter(pk=bill.pk).update(status=actual_status)
+        bill.status = actual_status
  
     try:
         PAGE_W, PAGE_H = A4
@@ -1288,8 +1295,8 @@ def bill_pdf(request, pk):
         }
  
         story = []
-        Rs = '\u20b9'   # ₹ rendered via DejaVu font
- 
+        Rs = '\u20b9'
+
         # ── 1. HEADER ─────────────────────────────────────────────────────────
         month_label = bill.from_date.strftime('%B %Y')
         date_range  = (f"{bill.from_date.strftime('%d %b')} \u2013 "
@@ -1402,7 +1409,7 @@ def bill_pdf(request, pk):
                 Paragraph(pname,                        sty['td']),
                 Paragraph(f'{d.quantity} L',            sty['td_r']),
                 Paragraph(f'{d.price_per_unit:.2f}',sty['td_mono_r']),
-                Paragraph(f'{d.amount:.2f}''Rs',        sty['td_mono_r']),
+                Paragraph(f'{d.amount:.2f}',        sty['td_mono_r']),
             ])
  
         row_styles = [
@@ -1421,7 +1428,7 @@ def bill_pdf(request, pk):
         story.extend([dt, Spacer(1,0.6*cm)])
  
         # ── 5. SUMMARY CARDS ──────────────────────────────────────────────────
-        CARD_W = CONTENT_W / 5
+        CARD_W = CONTENT_W / 4
         sum_data = [
             [Paragraph('MONTH TOTAL',  sty['sum_lbl']), 
              Paragraph('PREV BALANCE', sty['sum_lbl']),
@@ -1430,16 +1437,16 @@ def bill_pdf(request, pk):
             [Paragraph(f'{actual_total:.2f}', sty['sum_val_b']),
              Paragraph(f'{bill.previous_balance:.2f}',sty['sum_val']),
              Paragraph(f'{amount_paid:.2f}',  sty['paid_val']),
-             Paragraph(f'{amount_due:.2f}''Rs',   sty['due_val'])],
+             Paragraph(f'{amount_due:.2f}',   sty['due_val'])],
         ]
-        sc = Table(sum_data, colWidths=[CARD_W]*5)
+        sc = Table(sum_data, colWidths=[CARD_W]*4)
         sc.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(3,-1),C_TEAL_LIGHT),
-            ('BACKGROUND',(4,0),(4,-1),C_ORANGE_BG),
+            ('BACKGROUND',(0,0),(2,-1),C_TEAL_LIGHT),
+            ('BACKGROUND',(3,0),(3,-1),C_ORANGE_BG),
             ('TOPPADDING',(0,0),(-1,-1),10),('BOTTOMPADDING',(0,0),(-1,-1),10),
             ('LEFTPADDING',(0,0),(-1,-1),4),('RIGHTPADDING',(0,0),(-1,-1),4),
-            ('LINEAFTER',(0,0),(3,-1),0.5,C_BORDER),
-            ('LINELEFT',(4,0),(4,-1),2,C_ORANGE),
+            ('LINEAFTER',(0,0),(2,-1),0.5,C_BORDER),
+            ('LINELEFT',(3,0),(3,-1),2,C_ORANGE),
             ('ROUNDEDCORNERS',[6,6,6,6]),
         ]))
         story.append(KeepTogether([sc]))
@@ -1471,7 +1478,7 @@ def bill_pdf(request, pk):
  
     except Exception as e:
         return HttpResponse(f'PDF generation error: {e}', status=500)
-
+    
 @login_required
 def bill_whatsapp(request, pk):
     bill  = get_object_or_404(Bill, pk=pk)
