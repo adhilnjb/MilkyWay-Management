@@ -50,6 +50,77 @@ def _parse_date(s, fallback=None):
         return fallback or datetime.date.today()
 
 
+def _bill_payment_stats(bill):
+    """Return (linked_paid, unlinked_paid, amount_paid) for a bill.
+
+    A "linked" payment has payment.bill = this bill.
+    An "unlinked" (general) customer payment only counts toward THIS bill if
+    its payment_date falls inside this bill's own billing period
+    (from_date..to_date). Without the upper bound, one unlinked payment
+    would satisfy `payment_date__gte=bill.from_date` for every earlier bill
+    too, double-counting it as "paid" across multiple bills at once — that
+    mismatch is what was making the PDF/bill status look wrong after a
+    payment was added or deleted.
+    """
+    linked_paid = (Payment.objects.filter(bill=bill)
+                   .aggregate(t=Sum('amount'))['t'] or Decimal('0.00'))
+    unlinked_paid = (Payment.objects.filter(
+                        customer=bill.customer, bill__isnull=True,
+                        payment_date__gte=bill.from_date,
+                        payment_date__lte=bill.to_date,
+                     ).aggregate(t=Sum('amount'))['t'] or Decimal('0.00'))
+    return linked_paid, unlinked_paid, linked_paid + unlinked_paid
+
+
+def _sync_bill(bill):
+    """Recompute a bill's totals/status from live deliveries + payments and persist any change.
+
+    Call this any time a delivery or payment that could affect the bill is
+    added, edited, or deleted (payment_add, payment_delete, bill_mark_paid,
+    bill_edit, bill_generate, bill_detail, bill_pdf) so every view of a
+    bill's status agrees.
+    """
+    deliveries = DailyDelivery.objects.filter(
+        customer=bill.customer, date__gte=bill.from_date,
+        date__lte=bill.to_date, is_delivered=True,
+    )
+    stats        = deliveries.aggregate(actual_qty=Sum('quantity'), actual_amt=Sum('amount'))
+    actual_total = stats['actual_amt'] or Decimal('0')
+    grand_total  = actual_total - bill.discount + bill.previous_balance
+
+    _, _, amount_paid = _bill_payment_stats(bill)
+
+    status = ('paid' if grand_total <= 0 else
+              'paid' if amount_paid >= grand_total else
+              'partial' if amount_paid > 0 else 'unpaid')
+
+    if (bill.total_amount != actual_total or bill.grand_total != grand_total
+            or bill.status != status):
+        Bill.objects.filter(pk=bill.pk).update(
+            total_amount=actual_total,
+            total_quantity=stats['actual_qty'] or Decimal('0'),
+            grand_total=grand_total,
+            status=status,
+        )
+        bill.total_amount   = actual_total
+        bill.total_quantity = stats['actual_qty'] or Decimal('0')
+        bill.grand_total    = grand_total
+        bill.status         = status
+    return bill
+
+
+def _bill_for_payment_date(customer, payment_date):
+    """Find the bill (if any) whose billing period contains this payment date.
+
+    Used so an unlinked (general) payment recorded against a customer still
+    refreshes the one bill it actually applies to, instead of leaving that
+    bill's cached status stale until someone happens to open it.
+    """
+    return Bill.objects.filter(
+        customer=customer, from_date__lte=payment_date, to_date__gte=payment_date
+    ).first()
+
+
 # ── AUTH ──────────────────────────────────────────────────────────────────────
 def login_view(request):
     if request.user.is_authenticated:
@@ -898,11 +969,7 @@ def bill_generate(request):
                     'status': existing_bill.status if existing_bill else 'unpaid',
                 }
             )
-            paid = bill.payment_set.aggregate(t=Sum('amount'))['t'] or Decimal('0')
-            new_status = ('paid' if bill.grand_total <= 0 else
-                          'paid' if paid >= bill.grand_total else
-                          'partial' if paid > 0 else 'unpaid')
-            Bill.objects.filter(pk=bill.pk).update(status=new_status)
+            _sync_bill(bill)
             generated += 1 if created else 0
             updated_existing += 0 if created else 1
 
@@ -933,31 +1000,11 @@ def bill_detail(request, pk):
     ).order_by('date').select_related('product')
     payments   = Payment.objects.filter(bill=bill).order_by('-payment_date')
 
-    current_stats       = deliveries.aggregate(actual_qty=Sum('quantity'), actual_amt=Sum('amount'))
-    
-    # Sum both direct and general customer payments
-    linked_paid   = payments.aggregate(t=Sum('amount'))['t'] or Decimal('0')
-    unlinked_paid = Payment.objects.filter(
-        customer=bill.customer, bill__isnull=True, payment_date__gte=bill.from_date
-    ).aggregate(t=Sum('amount'))['t'] or Decimal('0')
-    amount_paid = linked_paid + unlinked_paid
-
-    actual_grand_total  = (current_stats['actual_amt'] or Decimal('0')) - bill.discount + bill.previous_balance
-
-    if bill.grand_total != actual_grand_total:
-        Bill.objects.filter(pk=bill.pk).update(
-            total_quantity=current_stats['actual_qty'] or Decimal('0'),
-            total_amount=current_stats['actual_amt'] or Decimal('0'),
-            grand_total=actual_grand_total)
-        bill.grand_total = actual_grand_total
-
-    amount_due      = max(Decimal('0.00'), bill.grand_total - amount_paid)
-    expected_status = ('paid' if bill.grand_total <= 0 else
-                       'paid' if amount_paid >= bill.grand_total else
-                       'partial' if amount_paid > 0 else 'unpaid')
-    if bill.status != expected_status:
-        Bill.objects.filter(pk=bill.pk).update(status=expected_status)
-        bill.status = expected_status
+    # Recalculate live totals + status (linked + unlinked-but-in-period
+    # payments) and persist, so this always matches the PDF and payment views.
+    bill = _sync_bill(bill)
+    _, _, amount_paid = _bill_payment_stats(bill)
+    amount_due = max(Decimal('0.00'), bill.grand_total - amount_paid)
 
     return render(request, 'delivery/bill_detail.html', {
         'bill': bill, 'deliveries': deliveries, 'payments': payments,
@@ -977,11 +1024,7 @@ def bill_edit(request, pk):
         bill.grand_total       = (bill.total_amount - bill.discount) + bill.previous_balance
         bill.save()
 
-        paid = bill.payment_set.aggregate(t=Sum('amount'))['t'] or Decimal('0')
-        new_status = ('paid' if bill.grand_total <= 0 else
-                      'paid' if paid >= bill.grand_total else
-                      'partial' if paid > 0 else 'unpaid')
-        Bill.objects.filter(pk=bill.pk).update(status=new_status, grand_total=bill.grand_total)
+        _sync_bill(bill)
         messages.success(request, f'Bill #{bill.bill_number} updated. Total: ₹{bill.grand_total:.2f}')
         return redirect('bill_detail', pk=pk)
     return render(request, 'delivery/bill_edit.html', {'bill': bill})
@@ -1033,10 +1076,7 @@ def bill_mark_paid(request, pk):
             received_by=request.user,
         )
 
-        paid = bill.payment_set.aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
-        new_status = 'paid' if paid >= bill.grand_total else 'partial'
-        
-        Bill.objects.filter(pk=bill.pk).update(status=new_status)
+        _sync_bill(bill)
 
         messages.success(request, f'Payment of ₹{amt} recorded for Bill #{bill.bill_number}')
 
@@ -1127,54 +1167,22 @@ def _draw_bg(canvas_obj, doc):
 @login_required
 def bill_pdf(request, pk):
     bill = get_object_or_404(Bill, pk=pk)
- 
-    # Recalculate live totals from deliveries
+
+    # Recalculate live totals + status from deliveries and payments (linked +
+    # unlinked-but-in-period), and persist them, so the PDF always matches
+    # what payment_add / payment_delete just did.
+    bill = _sync_bill(bill)
+
     deliveries = DailyDelivery.objects.filter(
         customer=bill.customer,
         date__gte=bill.from_date,
         date__lte=bill.to_date,
         is_delivered=True,
     ).order_by('date').select_related('product')
- 
-    stats = deliveries.aggregate(actual_qty=Sum('quantity'), actual_amt=Sum('amount'))
-    actual_total = stats['actual_amt'] or Decimal('0')
-    net_amount   = actual_total - bill.discount
-    grand_total  = net_amount + bill.previous_balance
- 
-    if bill.grand_total != grand_total or bill.total_amount != actual_total:
-        Bill.objects.filter(pk=bill.pk).update(
-            total_amount=actual_total,
-            total_quantity=stats['actual_qty'] or Decimal('0'),
-            grand_total=grand_total,
-        )
-        bill.total_amount = actual_total
-        bill.grand_total  = grand_total
 
-    # 1. Direct payments linked to this bill
-    linked_paid = (Payment.objects.filter(bill=bill)
-                   .aggregate(t=Sum('amount'))['t'] or Decimal('0.00'))
-
-    # 2. General customer payments made from bill start date onwards
-    unlinked_paid = (Payment.objects.filter(
-                        customer=bill.customer, 
-                        bill__isnull=True,
-                        payment_date__gte=bill.from_date,
-                     ).aggregate(t=Sum('amount'))['t'] or Decimal('0.00'))
-
-    amount_paid = linked_paid + unlinked_paid
+    grand_total = bill.grand_total
+    _, _, amount_paid = _bill_payment_stats(bill)
     amount_due  = max(Decimal('0.00'), grand_total - amount_paid)
-
-    # 3. Dynamic status calculation
-    if grand_total > Decimal('0.00') and amount_paid >= grand_total:
-        actual_status = 'paid'
-    elif amount_paid > Decimal('0.00'):
-        actual_status = 'partial'
-    else:
-        actual_status = 'unpaid'
-
-    if bill.status != actual_status:
-        Bill.objects.filter(pk=bill.pk).update(status=actual_status)
-        bill.status = actual_status
  
     try:
         PAGE_W, PAGE_H = A4
@@ -1357,7 +1365,7 @@ def bill_pdf(request, pk):
              Paragraph('PREV BALANCE', sty['sum_lbl']),
              Paragraph('AMOUNT PAID',  sty['sum_lbl']),
              Paragraph('AMOUNT DUE',   sty['due_lbl'])],
-            [Paragraph(f'{actual_total:.2f}', sty['sum_val_b']),
+            [Paragraph(f'{bill.total_amount:.2f}', sty['sum_val_b']),
              Paragraph(f'{bill.previous_balance:.2f}', sty['sum_val']),
              Paragraph(f'{amount_paid:.2f}',  sty['paid_val']),
              Paragraph(f'{amount_due:.2f}',   sty['due_val'])],
@@ -1446,22 +1454,29 @@ def payment_add(request, customer_pk=None):
         if amt <= 0:
             messages.error(request, 'Amount must be greater than zero.')
             return redirect(request.path)
+        pmt_date = _parse_date(p.get('payment_date'))
         pmt = Payment.objects.create(
             customer=cust, amount=amt,
             payment_method=p.get('payment_method','cash'),
             reference_number=p.get('reference_number',''),
-            payment_date=_parse_date(p.get('payment_date')),
+            payment_date=pmt_date,
             notes=p.get('notes',''), received_by=request.user,
         )
         if p.get('bill_id'):
             try:
                 b = Bill.objects.get(pk=p['bill_id'])
                 pmt.bill = b; pmt.save()
-                paid = Payment.objects.filter(bill=b).aggregate(t=Sum('amount'))['t'] or Decimal('0')
-                Bill.objects.filter(pk=b.pk).update(
-                    status='paid' if paid >= b.grand_total else 'partial')
+                _sync_bill(b)
             except Bill.DoesNotExist:
                 pass
+        else:
+            # Unlinked (general) payment — still refresh the one bill whose
+            # billing period actually covers this payment date, so its
+            # status/PDF reflect the payment immediately instead of only
+            # updating the next time that bill happens to be opened.
+            covering_bill = _bill_for_payment_date(cust, pmt_date)
+            if covering_bill:
+                _sync_bill(covering_bill)
         messages.success(request, f'Payment of ₹{pmt.amount} recorded for {cust.name}')
         return redirect('customer_detail', pk=cust.pk)
     return render(request, 'delivery/payment_form.html', {
@@ -1495,13 +1510,19 @@ def payment_list(request):
 def payment_delete(request, pk):
     payment = get_object_or_404(Payment, pk=pk)
     if request.method == 'POST':
-        bill = payment.bill; amt = payment.amount; cust = payment.customer.name
+        bill      = payment.bill
+        customer  = payment.customer
+        pmt_date  = payment.payment_date
+        amt, cust = payment.amount, payment.customer.name
+
+        # For an unlinked payment, find the bill it was covering BEFORE
+        # deleting it, since we need the payment date to look that up.
+        covering_bill = bill or _bill_for_payment_date(customer, pmt_date)
+
         payment.delete()
-        if bill:
-            paid = bill.payment_set.aggregate(t=Sum('amount'))['t'] or Decimal('0')
-            Bill.objects.filter(pk=bill.pk).update(
-                status=('paid' if paid >= bill.grand_total and bill.grand_total > 0
-                        else 'partial' if paid > 0 else 'unpaid'))
+
+        if covering_bill:
+            _sync_bill(covering_bill)
         messages.success(request, f'Payment of ₹{amt} from {cust} deleted.')
         return redirect('payment_list')
     return render(request, 'delivery/confirm_delete.html', {
