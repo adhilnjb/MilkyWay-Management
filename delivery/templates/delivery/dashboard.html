@@ -73,6 +73,37 @@
     border-radius:99px;padding:6px 12px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
   .hero-chip[hidden]{display:none}
 
+  /* MILK GLASS */
+  .glass-panel{display:grid;grid-template-columns:250px 1fr;gap:26px;align-items:center;padding:22px 26px;margin-bottom:22px}
+  .glass-stage{position:relative;width:190px;height:230px;margin:auto;cursor:grab;touch-action:pan-y;user-select:none;-webkit-user-select:none;border-radius:20px}
+  .glass-stage:active{cursor:grabbing}
+  .glass-stage canvas{width:190px;height:230px;display:block}
+  .gi-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .gi-kicker{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--teal)}
+  .gi-title{font-size:20px;font-weight:900;margin-top:2px}
+  .gi-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .gi-btn{border:1px solid var(--border);background:var(--surface-2);color:var(--text-1);font:700 12px 'Inter',sans-serif;padding:8px 12px;min-height:38px;border-radius:10px;cursor:pointer;transition:transform .15s,background .2s}
+  .gi-btn:active{transform:scale(.95)}
+  .gi-input{width:96px;height:38px;border:1px solid var(--teal);background:var(--surface);color:var(--text-1);border-radius:10px;padding:0 10px;font:700 16px 'Inter',sans-serif}
+  .day-chips{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;overscroll-behavior-x:contain;scrollbar-width:none;padding:2px 0 12px}
+  .day-chips::-webkit-scrollbar{display:none}
+  .gi-stats{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--border-2);border-radius:12px;overflow:hidden;margin-bottom:14px}
+  .gi-stats>div{padding:10px 14px;border-right:1px solid var(--border-2)}
+  .gi-stats>div:last-child{border-right:0}
+  .up{color:#10b981}.down{color:#f87171}
+  .goal-bar{height:8px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:8px}
+  .goal-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),#34d399);border-radius:99px;transition:width .9s var(--ease)}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .kpi-amber{cursor:pointer}
+  .mw-toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translate(-50%,90px);background:var(--chart-tt-bg,#0f172a);color:var(--chart-tt-txt,#fff);
+    font:600 13px 'Inter',sans-serif;padding:11px 18px;border-radius:12px;box-shadow:var(--shadow-md);transition:transform .3s var(--ease);z-index:9999;pointer-events:none}
+  .mw-toast.show{transform:translate(-50%,0)}
+  .del-export{height:40px}
+  @media (max-width:820px){
+    .glass-panel{grid-template-columns:1fr;padding:16px;gap:14px}
+    .gi-title{font-size:17px}
+  }
+
   /* KPI */
   .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
   .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;
@@ -220,6 +251,28 @@
     </div>
   </div>
 
+  <!-- MILK GLASS -->
+  <div class="panel glass-panel" id="glass-panel">
+    <div class="glass-stage" id="glass" tabindex="0" role="slider" aria-label="Litres delivered by day" aria-valuemin="0" aria-valuenow="0">
+      <canvas id="glass-canvas" width="190" height="230"></canvas>
+    </div>
+    <div class="glass-info">
+      <div class="gi-head">
+        <div><div class="gi-kicker" id="g-kicker">Today</div><div class="gi-title">Milk delivered</div></div>
+        <div class="gi-actions"><span id="goal-wrap"></span><button class="gi-btn" id="g-share">📤 Share</button></div>
+      </div>
+      <div class="day-chips" id="day-chips" aria-label="Pick a day"></div>
+      <div class="gi-stats">
+        <div><div class="ws-label">Revenue</div><div class="ws-val" id="g-rev">–</div></div>
+        <div><div class="ws-label">vs previous day</div><div class="ws-val" id="g-prev">–</div></div>
+        <div><div class="ws-label">vs weekly avg</div><div class="ws-val" id="g-avg">–</div></div>
+      </div>
+      <div class="goal-bar"><i id="goal-fill"></i></div>
+      <div class="kpi-sub" id="g-hint">Swipe the glass or tap a day · tap to splash · tilt your phone to slosh</div>
+      <span class="sr-only" aria-live="polite" id="g-live"></span>
+    </div>
+  </div>
+
   <!-- KPI -->
   <div class="kpi-grid">
     <div class="kpi-card kpi-teal">
@@ -321,6 +374,7 @@
           <option value="amt">Highest amount</option>
           <option value="name">Name A–Z</option>
         </select>
+        <button class="gi-btn del-export" id="del-csv" title="Download visible rows as CSV">⬇ CSV</button>
       </div>
       <div class="chips" id="del-chips">
         <button class="chip on" data-s="all">All<b></b></button>
@@ -416,6 +470,14 @@
   const weekLabels = {{ chart_labels|safe }};
   const weekQty    = {{ chart_qty|safe }};
   const weekRev    = {{ chart_rev|safe }};
+  let selDay = Math.max(weekQty.length - 1, 0);
+  let setDayFn = () => {};
+  let redrawGlass = () => {};
+  const toastEl = document.createElement('div');
+  toastEl.className = 'mw-toast'; toastEl.setAttribute('role', 'status');
+  document.body.appendChild(toastEl);
+  let toastT;
+  function toast(m) { toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('show'), 2200); }
   const teal = '#0d9488', amber = '#d97706', indigo = '#4f46e5', rose = '#e11d48';
   const small = innerWidth < 640;
   const anim = reduce ? false : { duration: 900, easing: 'easeOutCubic' };
@@ -429,7 +491,7 @@
     data: {
       labels: weekLabels,
       datasets: [
-        { type: 'bar', label: 'Liters (L)', data: weekQty, backgroundColor: 'rgba(13,148,136,.22)', borderColor: teal,
+        { type: 'bar', label: 'Liters (L)', data: weekQty, backgroundColor: c => c.dataIndex === selDay ? 'rgba(13,148,136,.6)' : 'rgba(13,148,136,.2)', borderColor: teal,
           borderWidth: 2, borderRadius: 7, borderSkipped: false, yAxisID: 'y' },
         { type: 'line', label: 'Revenue (₹)', data: weekRev, borderColor: amber, backgroundColor: 'rgba(217,119,6,.1)',
           fill: true, tension: .45, borderWidth: 2.5, pointRadius: small ? 3 : 4, pointHitRadius: 18,
@@ -439,6 +501,7 @@
     options: {
       responsive: true, maintainAspectRatio: false, animation: anim,
       interaction: { mode: 'index', intersect: false },
+      onClick: (e, els) => { if (els.length) setDayFn(els[0].index); },
       plugins: {
         legend: { position: 'top', labels: { font: { family: 'Inter', weight: '700', size: small ? 10 : 11 },
           color: css('--text-2'), boxWidth: 10, boxHeight: 10, padding: small ? 10 : 16 } },
@@ -478,6 +541,187 @@
       chip.textContent = (d >= 0 ? '▲ ' : '▼ ') + Math.abs(d).toFixed(1) + '% vs weekly avg';
       chip.hidden = false;
     }
+  })();
+
+  /* ── MILK GLASS (canvas waves, bubbles, tilt, swipe) ── */
+  (function glass() {
+    const gp = $('#glass-panel');
+    const days = weekLabels.map((l, i) => ({ label: String(l), qty: Number(weekQty[i]) || 0, rev: Number(weekRev[i]) || 0 }));
+    const N = days.length;
+    if (!N) { gp.hidden = true; return; }
+    const wavg = days.reduce((a, d) => a + d.qty, 0) / N;
+    let goal = (function () {
+      try { const g = parseFloat(localStorage.getItem('mw-goal')); if (g > 0) return g; } catch (e) {}
+      return Math.max(10, Math.ceil(Math.max(0, ...days.map(d => d.qty)) * 1.1 / 10) * 10);
+    })();
+
+    const stage = $('#glass'), cv = $('#glass-canvas'), ctx = cv.getContext('2d');
+    const W = 190, H = 230, dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    cv.width = W * dpr; cv.height = H * dpr; ctx.scale(dpr, dpr);
+    const shape = new Path2D();
+    shape.moveTo(16, 12); shape.lineTo(174, 12); shape.lineTo(152, 206);
+    shape.quadraticCurveTo(150, 220, 136, 220); shape.lineTo(54, 220);
+    shape.quadraticCurveTo(40, 220, 38, 206); shape.closePath();
+    const TOP = 26, BOT = 220;
+
+    let target = days[selDay].qty, shown = 0, tilt = 0, tiltT = 0, splash = 0, T = 0;
+    let raf = 0, last = 0, running = false, inView = true, motionOn = false;
+    const bubbles = [];
+    const level = () => BOT - Math.max(0, Math.min(shown / goal, 1)) * (BOT - TOP);
+
+    function draw() {
+      const dark = (parseInt(css('--text-1').slice(1, 3), 16) || 0) > 128;
+      const frac = Math.max(0, Math.min(shown / goal, 1));
+      const yL = level();
+      const amp = reduce ? 0 : (2 + 5 * splash + Math.abs(tilt) * 6) * Math.min(1, frac * 8, (1.05 - frac) * 8 + .25);
+      const pts = (ph, a) => { const p = []; for (let x = 0; x <= W; x += 5) p.push([x, yL + tilt * (x - W / 2) + Math.sin(x * .05 + T * 2.2 + ph) * a + Math.sin(x * .11 - T * 1.5 + ph) * a * .45]); return p; };
+      const poly = p => { const r = new Path2D(); r.moveTo(0, H); p.forEach(q => r.lineTo(q[0], q[1])); r.lineTo(W, H); r.closePath(); return r; };
+      const label = col => {
+        ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = '900 40px Inter, sans-serif'; ctx.fillText(shown.toFixed(1), W / 2, 108);
+        ctx.font = '800 11px Inter, sans-serif'; ctx.fillText('LITRES', W / 2, 136);
+        ctx.font = '700 12px Inter, sans-serif'; ctx.fillText(Math.round(shown / goal * 100) + '% of goal', W / 2, 158);
+      };
+      ctx.clearRect(0, 0, W, H);
+      ctx.save(); ctx.clip(shape);
+      ctx.fillStyle = dark ? 'rgba(255,255,255,.05)' : 'rgba(13,148,136,.07)'; ctx.fillRect(0, 0, W, H);
+      label(dark ? '#e2e8f0' : css('--text-1'));
+      if (frac > .002) {
+        ctx.fillStyle = dark ? 'rgba(94,200,184,.45)' : 'rgba(13,148,136,.22)'; ctx.fill(poly(pts(1.7, amp * .8)));
+        const front = poly(pts(0, amp));
+        const gr = ctx.createLinearGradient(0, yL - 10, 0, BOT);
+        gr.addColorStop(0, dark ? '#f1fffc' : '#ffffff'); gr.addColorStop(1, dark ? '#8fd6c9' : '#bfeae0');
+        ctx.fillStyle = gr; ctx.fill(front);
+        ctx.save(); ctx.clip(front);
+        bubbles.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.2832); ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fill(); ctx.strokeStyle = 'rgba(13,148,136,.35)'; ctx.lineWidth = 1; ctx.stroke(); });
+        label('#0b4f46');
+        ctx.restore();
+      }
+      const hg = ctx.createLinearGradient(22, 0, 46, 0);
+      hg.addColorStop(0, 'rgba(255,255,255,0)'); hg.addColorStop(.5, 'rgba(255,255,255,.38)'); hg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = hg; ctx.fillRect(22, 20, 24, 180);
+      ctx.restore();
+      ctx.lineWidth = 3; ctx.strokeStyle = '#0d9488'; ctx.stroke(shape);
+      ctx.beginPath(); ctx.moveTo(14, 12); ctx.lineTo(176, 12); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(13,148,136,.5)'; ctx.stroke();
+    }
+    function step(dt) {
+      T += dt;
+      shown += (target - shown) * (1 - Math.exp(-dt * 4));
+      if (Math.abs(target - shown) < .005) shown = target;
+      splash *= Math.exp(-dt * 2.2);
+      tilt += (tiltT - tilt) * (1 - Math.exp(-dt * 6));
+      const yL = level();
+      if (!reduce && shown / goal > .05 && bubbles.length < 14 && Math.random() < dt * 5)
+        bubbles.push({ x: 30 + Math.random() * 130, y: BOT - 6, r: 1.5 + Math.random() * 3, v: 18 + Math.random() * 26, p: Math.random() * 6 });
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        const b = bubbles[i]; b.y -= b.v * dt; b.x += Math.sin(T * 3 + b.p) * .25;
+        if (b.y < yL + 4) bubbles.splice(i, 1);
+      }
+      draw();
+    }
+    function frame(t) { raf = requestAnimationFrame(frame); const dt = Math.min((t - last) / 1000 || .016, .05); last = t; step(dt); }
+    function start() { if (reduce || running || !inView || document.hidden) return; running = true; last = performance.now(); raf = requestAnimationFrame(frame); }
+    function stop() { running = false; cancelAnimationFrame(raf); }
+    if ('IntersectionObserver' in window) new IntersectionObserver(es => { inView = es[0].isIntersecting; inView ? start() : stop(); }).observe(stage);
+    document.addEventListener('visibilitychange', () => document.hidden ? stop() : start());
+    redrawGlass = () => { if (!running) step(.016); };
+
+    /* day selection + readouts */
+    const chipBox = $('#day-chips');
+    days.forEach((d, i) => {
+      const b = document.createElement('button'); b.className = 'chip'; b.type = 'button';
+      b.textContent = i === N - 1 ? 'Today' : d.label; b.addEventListener('click', () => setDay(i));
+      chipBox.appendChild(b);
+    });
+    const pctTxt = (el, v) => { el.textContent = (v >= 0 ? '▲ ' : '▼ ') + Math.abs(v).toFixed(1) + '%'; el.classList.toggle('up', v >= 0); el.classList.toggle('down', v < 0); };
+    function setDay(i) {
+      i = Math.max(0, Math.min(N - 1, i)); selDay = i;
+      const d = days[i]; target = d.qty;
+      $$('#day-chips .chip').forEach((c, k) => c.classList.toggle('on', k === i));
+      const on = $('#day-chips .chip.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+      $('#g-kicker').textContent = i === N - 1 ? 'Today · ' + d.label : d.label;
+      $('#g-rev').textContent = '₹' + inr(d.rev);
+      const prev = i > 0 ? days[i - 1].qty : 0;
+      if (i > 0 && prev) pctTxt($('#g-prev'), (d.qty - prev) / prev * 100); else { $('#g-prev').textContent = '–'; $('#g-prev').className = 'ws-val'; }
+      if (wavg) pctTxt($('#g-avg'), (d.qty - wavg) / wavg * 100);
+      $('#goal-fill').style.width = Math.min(d.qty / goal * 100, 100) + '%';
+      stage.setAttribute('aria-valuenow', d.qty); stage.setAttribute('aria-valuemax', goal);
+      stage.setAttribute('aria-valuetext', d.qty.toFixed(1) + ' litres on ' + d.label);
+      $('#g-live').textContent = d.label + ': ' + d.qty.toFixed(1) + ' litres, ₹' + inr(d.rev);
+      if (reduce) { shown = target; step(.016); }
+      week.update('none');
+    }
+    setDayFn = setDay;
+
+    /* goal (saved on this device) */
+    function goalBtn() {
+      const w = $('#goal-wrap'); w.innerHTML = '';
+      const b = document.createElement('button'); b.className = 'gi-btn'; b.type = 'button';
+      b.textContent = '🎯 Goal ' + inr(goal, 0) + ' L ✎'; b.addEventListener('click', editGoal); w.appendChild(b);
+    }
+    function editGoal() {
+      const w = $('#goal-wrap'); w.innerHTML = '<input class="gi-input" type="number" inputmode="decimal" min="1" step="1" aria-label="Daily goal in litres">';
+      const inp = w.firstChild; inp.value = goal; inp.focus(); inp.select();
+      let done = false;
+      const fin = save => {
+        if (done) return; done = true;
+        const v = parseFloat(inp.value);
+        if (save && v > 0) { goal = v; try { localStorage.setItem('mw-goal', String(v)); } catch (e) {} }
+        goalBtn(); setDay(selDay);
+      };
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') fin(true); if (e.key === 'Escape') fin(false); });
+      inp.addEventListener('blur', () => fin(true));
+    }
+    goalBtn();
+
+    /* share summary (WhatsApp etc. via the Android share sheet) */
+    $('#g-share').addEventListener('click', async () => {
+      const d = days[selDay];
+      const txt = '🥛 Milky Way Dairy · ' + d.label + '\nDelivered: ' + d.qty.toFixed(1) + ' L\nRevenue: ₹' + inr(d.rev) + '\nGoal: ' + Math.round(d.qty / goal * 100) + '% of ' + inr(goal) + ' L';
+      try {
+        if (navigator.share) await navigator.share({ text: txt });
+        else { await navigator.clipboard.writeText(txt); toast('Summary copied'); }
+      } catch (e) { /* share cancelled */ }
+    });
+
+    /* gestures: swipe = change day, tap = splash, tilt = slosh */
+    let px = null;
+    stage.addEventListener('pointerdown', e => { px = e.clientX; });
+    stage.addEventListener('pointercancel', () => { px = null; });
+    stage.addEventListener('pointerup', e => {
+      if (px === null) return;
+      const dx = e.clientX - px; px = null;
+      if (Math.abs(dx) > 40) setDay(selDay + (dx < 0 ? 1 : -1));
+      else { splash = 1; askMotion(); if (navigator.vibrate) navigator.vibrate(10); if (reduce) step(.016); }
+    });
+    stage.addEventListener('pointermove', e => {
+      if (e.pointerType !== 'mouse' || reduce) return;
+      const r = stage.getBoundingClientRect(); tiltT = ((e.clientX - r.left) / r.width - .5) * .25;
+    });
+    stage.addEventListener('pointerleave', () => { if (!motionOn) tiltT = 0; });
+    stage.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); setDay(selDay + 1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); setDay(selDay - 1); }
+      else if (e.key === 'Home') { e.preventDefault(); setDay(0); }
+      else if (e.key === 'End') { e.preventDefault(); setDay(N - 1); }
+    });
+    const onOri = e => { if (e.gamma == null) return; motionOn = true; tiltT = Math.max(-1, Math.min(1, e.gamma / 40)) * .3; };
+    function askMotion() {
+      if (askMotion.done || reduce) return; askMotion.done = true;
+      try {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function')
+          DeviceOrientationEvent.requestPermission().then(r => { if (r === 'granted') addEventListener('deviceorientation', onOri); }).catch(() => {});
+      } catch (e) {}
+    }
+    if (!reduce && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission !== 'function')
+      addEventListener('deviceorientation', onOri);
+
+    /* tap the "Delivered Today" card to jump to the glass */
+    const kd = $('.kpi-amber');
+    if (kd) kd.addEventListener('click', () => { setDay(N - 1); gp.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' }); });
+
+    setDay(selDay);
+    start();
   })();
 
   /* ── ZONE DONUT (tap to focus, centre text) ── */
@@ -538,6 +782,7 @@
     week.options.plugins.legend.labels.color = t2;
     week.options.plugins.tooltip = tooltip();
     week.update('none');
+    redrawGlass();
     if (area) {
       area.data.datasets[0].borderColor = css('--surface');
       area.options.plugins.legend.labels.color = t2;
@@ -602,6 +847,24 @@
     c.scrollIntoView({ inline: 'center', block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
   }));
   if (rows.length) render();
+
+  /* ── CSV EXPORT (visible rows) + KEYBOARD SHORTCUT ── */
+  $('#del-csv').addEventListener('click', () => {
+    const vis = rows.filter(r => !r.hidden);
+    if (!vis.length) { toast('Nothing to export'); return; }
+    const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+    const lines = [['Customer', 'Date', 'Qty (L)', 'Amount (Rs)', 'Status'].map(q).join(',')];
+    vis.forEach(r => lines.push([$('.cust-name', r).textContent.trim(), r.dataset.date, r.dataset.qty, r.dataset.amt, r.dataset.status === 'done' ? 'Done' : 'Pending'].map(q).join(',')));
+    const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'deliveries-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('CSV downloaded (' + vis.length + ' rows)');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')) { e.preventDefault(); $('#del-q').focus(); }
+  });
 
   /* ── LIVE REFRESH (tap, or when returning to the tab after 5 min) ── */
   $('#live-refresh').addEventListener('click', function () { this.classList.add('spin'); setTimeout(() => location.reload(), 350); });
