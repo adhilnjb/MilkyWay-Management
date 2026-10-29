@@ -545,6 +545,7 @@
 
   /* ── MILK GLASS (canvas waves, bubbles, tilt, swipe) ── */
   (function glass() {
+    const reduce = false;   // always animate the milk glass, even on phones with "reduce motion" turned on
     const gp = $('#glass-panel');
     const days = weekLabels.map((l, i) => ({ label: String(l), qty: Number(weekQty[i]) || 0, rev: Number(weekRev[i]) || 0 }));
     const N = days.length;
