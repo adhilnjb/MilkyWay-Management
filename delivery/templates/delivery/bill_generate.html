@@ -9,271 +9,425 @@
 
 {% block extra_css %}
 <style>
-    /* ── DYNAMIC GRID SYSTEM ── */
-    .generate-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 24px;
-        max-width: 1300px;
-        margin: 0 auto;
-    }
+  .bg-wrap{max-width:1300px;margin:0 auto;padding:0 12px calc(90px + env(safe-area-inset-bottom,0px));-webkit-tap-highlight-color:transparent}
+  .bg-wrap button,.bg-wrap input,.bg-wrap select,.bg-wrap label{touch-action:manipulation}
+  .bg-wrap :focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  .bg-panel{background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow)}
 
-    @media (min-width: 1024px) {
-        .generate-grid { grid-template-columns: 1.6fr 1fr; align-items: start; }
-        .sticky-settings { position: sticky; top: 85px; }
-    }
+  /* FILTER BAR */
+  .bg-filters{padding:16px 20px;margin-bottom:18px;display:grid;gap:14px}
+  .f-row{display:grid;grid-template-columns:140px 90px 1fr;gap:10px;align-items:end}
+  .f-field label,.f-label{display:block;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .f-control{width:100%;height:46px;border-radius:12px;background:var(--bg);border:1.5px solid var(--border);color:var(--text);padding:0 12px;font:500 15px inherit;font-family:inherit}
+  .f-control:focus{outline:none;border-color:var(--primary)}
+  .f-control::placeholder{color:var(--muted)}
+  .f-line{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  
+  /* HIDDEN CHIPS CONTAINER */
+  .chips{display:none}
 
-    /* ── CUSTOMER CARDS ── */
-    .cust-scroll {
-        max-height: 600px;
-        overflow-y: auto;
-        padding-right: 5px;
-        -webkit-overflow-scrolling: touch;
-    }
+  .seg{display:inline-flex;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:3px;gap:2px}
+  .seg button{border:0;background:none;color:var(--muted);font:700 13px inherit;font-family:inherit;padding:8px 12px;min-height:38px;border-radius:9px;cursor:pointer;transition:background .2s,color .2s}
+  .seg button.on{background:var(--card);color:var(--primary-light);box-shadow:var(--shadow)}
+  .link-btn{border:0;background:none;color:var(--primary-light);font:700 13px inherit;font-family:inherit;cursor:pointer;padding:8px 4px;min-height:38px}
+  .hint{font-size:11px;color:var(--muted)}
 
-    .cust-card-premium {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        background: var(--card);                /* was: white */
-        border: 1px solid var(--border);
-        border-radius: 20px;
-        padding: 16px 20px;
-        margin-bottom: 12px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        position: relative;
-    }
+  /* GRID */
+  .bg-grid{display:grid;grid-template-columns:1fr;gap:18px}
+  @media (min-width:1024px){.bg-grid{grid-template-columns:1.7fr 1fr;align-items:start}.bg-side{position:sticky;top:85px}}
 
-    .cust-card-premium:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: var(--shadow); }
+  /* LIST */
+  .list-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;background:var(--table-head-bg);border-bottom:1px solid var(--border);border-radius:20px 20px 0 0}
+  .master{display:flex;align-items:center;gap:10px;font-weight:800;font-size:14px;cursor:pointer;min-height:40px}
+  .master input{width:20px;height:20px;accent-color:var(--primary)}
+  .list-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .btn-mini{border:1px solid var(--border);background:var(--card);color:var(--text);font:700 12px inherit;font-family:inherit;padding:8px 12px;min-height:38px;border-radius:10px;cursor:pointer;transition:transform .15s}
+  .btn-mini:active{transform:scale(.95)}
+  .cust-scroll{max-height:min(640px,calc(100vh - 330px));min-height:260px;overflow-y:auto;padding:14px 16px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .cust-card{display:flex;align-items:center;gap:12px;background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:12px 14px;margin-bottom:10px;cursor:pointer;position:relative;
+    transition:border-color .18s,background-color .18s,transform .15s;min-height:64px}
+  .cust-card[hidden]{display:none}
+  .cust-card:active{transform:scale(.99)}
+  @media (hover:hover){.cust-card:hover{border-color:var(--primary)}}
+  .cust-card.selected{border-color:var(--primary);background:var(--primary-pale)}
+  .cust-card.has-bill:not(.selected){background:var(--success-light);border-color:rgba(16,185,129,.35)}
+  .cust-card input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+  .tick{width:26px;height:26px;border-radius:8px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,border-color .15s;color:#fff;font-size:13px}
+  .tick span{opacity:0;transform:scale(.4);transition:opacity .15s,transform .2s}
+  .cust-card input:checked + .tick{background:var(--primary);border-color:var(--primary)}
+  .cust-card input:checked + .tick span{opacity:1;transform:none}
+  .cust-card input:focus-visible + .tick{outline:2px solid var(--primary);outline-offset:2px}
+  .avatar{width:38px;height:38px;background:var(--primary-pale);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--primary-light);font-size:15px;flex-shrink:0}
+  .cust-info{flex:1;min-width:0}
+  .cust-info h4{font-size:14px;font-weight:800;color:var(--text);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cust-info p{font-size:11px;color:var(--muted);margin:2px 0 0}
+  .cust-meta{text-align:right;flex-shrink:0}
+  .cust-meta .qty{font-size:13px;font-weight:900;color:var(--primary-light)}
+  .tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 7px;border-radius:99px;margin-top:4px}
+  .tag.ex{background:var(--success-light);color:#065f46}
+  .tag.nw{background:var(--primary-pale);color:var(--primary-light)}
+  .empty{text-align:center;padding:40px 16px;color:var(--muted)}
+  .empty button{margin-top:10px}
 
-    .cust-card-premium.has-bill {
-        background: var(--success-light);       /* was: #f0fdf4 */
-        border-color: rgba(16,185,129,.35);     /* was: #bbf7d0 */
-    }
+  /* SUMMARY / SETTINGS */
+  .bg-side .bg-panel{padding:22px}
+  .side-kicker{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px}
+  .sum-big{font-size:34px;font-weight:900;line-height:1;margin:10px 0 4px;font-variant-numeric:tabular-nums}
+  .sum-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+  .sum-grid div{background:var(--bg);border-radius:12px;padding:10px;text-align:center}
+  .sum-grid b{display:block;font-size:18px;font-weight:900;font-variant-numeric:tabular-nums}
+  .sum-grid small{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  
+  /* READABLE SOLID NOTES / ALERTS */
+  .note{font-size:12px;line-height:1.5;border-radius:12px;padding:12px 14px;margin-bottom:12px;border:1px solid var(--border);background:var(--card);box-shadow:var(--shadow)}
+  .note.warn{border-color:#f59e0b;background:var(--card);color:var(--text)}
+  .note.info{border-color:var(--primary);background:var(--card);color:var(--text)}
+  .note[hidden]{display:none}
 
-    .checkbox-wrapper {
-        width: 24px; height: 24px;
-        border-radius: 8px;
-        border: 2px solid var(--border);        /* was: #cbd5e1 */
-        display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0; transition: 0.2s;
-    }
+  .btn-go{width:100%;height:58px;background:linear-gradient(135deg,#0d7377 0%,#14a085 100%);color:#fff;border:0;border-radius:16px;font:800 16px inherit;font-family:inherit;
+    margin-top:16px;box-shadow:0 10px 20px -5px rgba(13,115,119,.4);cursor:pointer;transition:transform .2s,filter .2s}
+  .btn-go:active{transform:scale(.98)}
+  .btn-go:disabled{filter:grayscale(1);opacity:.5;cursor:not-allowed;box-shadow:none}
 
-    input[type=checkbox]:checked + .checkbox-wrapper {
-        background: var(--primary);
-        border-color: var(--primary);
-    }
+  /* MOBILE BAR */
+  .m-bar{position:fixed;left:0;right:0;bottom:0;z-index:50;display:none;align-items:center;justify-content:space-between;gap:12px;
+    background:var(--card);border-top:1px solid var(--border);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(0,0,0,.12)}
+  .m-bar .btn-go{width:auto;margin:0;height:48px;padding:0 22px;font-size:15px;flex-shrink:0}
+  .m-bar strong{font-size:15px;display:block}.m-bar small{color:var(--muted);font-size:11px}
+  @media (max-width:1023px){.m-bar{display:flex}}
 
-    .cust-avatar {
-        width: 45px; height: 45px;
-        background: var(--primary-pale);        /* was: #f1f5f9 */
-        border-radius: 14px;
-        display: flex; align-items: center; justify-content: center;
-        font-weight: 800; color: var(--primary-light);
-        font-size: 16px; flex-shrink: 0;
-    }
+  /* HIGH READABILITY CONFIRM DIALOG + SOLID BACKDROP */
+  dialog.bg-dialog{border:2px solid var(--border);border-radius:22px;background:var(--card);color:var(--text);padding:0;width:min(440px,92vw);box-shadow:0 20px 40px rgba(0,0,0,0.5)}
+  dialog.bg-dialog::backdrop{background:rgba(10, 15, 30, 0.85);backdrop-filter:blur(4px)}
+  .dlg-body{padding:22px}.dlg-body h3{margin:0 0 10px;font-size:18px;font-weight:900}
+  .dlg-body p{margin:0 0 10px;font-size:14px;line-height:1.5}
+  .dlg-opt{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid var(--border);border-radius:12px;margin-bottom:8px;cursor:pointer;font-size:13px;line-height:1.4;background:var(--bg)}
+  .dlg-opt input{margin-top:2px;accent-color:var(--primary);width:18px;height:18px;flex-shrink:0}
+  .dlg-opt:has(input:checked){border-color:var(--primary);background:var(--primary-pale)}
+  .dlg-foot{display:flex;gap:10px;padding:0 22px 22px}
+  .dlg-foot button{flex:1;height:48px;border-radius:12px;font:800 14px inherit;font-family:inherit;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text)}
+  .dlg-foot .go{background:var(--primary);border-color:var(--primary);color:#fff}
+  
+  /* HIGH READABILITY LOADING OVERLAY */
+  .busy{position:fixed;inset:0;z-index:9999;background:rgba(10, 15, 30, 0.92);display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;color:#fff;text-align:center;padding:20px}
+  .busy[hidden]{display:none}
+  .spin{width:44px;height:44px;border:4px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  
+  .bg-toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translate(-50%,120px);background:#0f172a;color:#fff;font:600 13px inherit;font-family:inherit;padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,0.2);transition:transform .3s;z-index:9998;pointer-events:none;box-shadow:0 10px 25px rgba(0,0,0,0.5)}
+  .bg-toast.show{transform:translate(-50%,0)}
 
-    .cust-info { flex: 1; }
-    .cust-info h4 { font-size: 15px; font-weight: 800; color: var(--text); margin: 0; }   /* was: var(--dark) */
-    .cust-info p  { font-size: 11px; color: var(--muted); margin-top: 2px; }
-
-    .cust-meta { text-align: right; }
-    .cust-meta .qty { font-size: 14px; font-weight: 900; color: var(--primary-light); }
-    .cust-meta .badge-exists {
-        display: block; font-size: 9px; font-weight: 800;
-        background: var(--success-light); color: #065f46;  /* was: #d1fae5 */
-        padding: 2px 8px; border-radius: 99px; margin-top: 4px;
-    }
-
-    /* ── SETTINGS CARD ── */
-    .settings-card {
-        background: var(--card);               /* was: white */
-        border-radius: 24px; padding: 24px;
-        border: 1px solid var(--border);
-        box-shadow: var(--shadow);
-    }
-
-    /* card-header inside main selection */
-    .card-header-inner {
-        background: var(--table-head-bg);      /* was: #f8fafc */
-        padding: 20px 24px;
-    }
-
-    /* search input inside card */
-    .cust-search-input {
-        height: 48px; border-radius: 12px;
-        background: var(--bg);                 /* was: #f1f5f9 */
-        border: 1.5px solid var(--border);
-        color: var(--text);
-        width: 100%;
-        padding: 0 16px;
-        font-family: inherit; font-size: 14px;
-    }
-    .cust-search-input::placeholder { color: var(--muted); }
-    .cust-search-input:focus { outline: none; border-color: var(--primary); }
-
-    /* form labels */
-    .settings-label { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 8px; display: block; }  /* was: var(--dark) */
-
-    /* pro tip box */
-    .pro-tip-box {
-        background: var(--primary-pale);
-        border-radius: 16px; padding: 16px;
-        border: 1px solid rgba(13,115,119,.2);  /* was: #bfdbfe */
-    }
-    .pro-tip-box .tip-title { font-size: 13px; font-weight: 800; color: var(--primary-light); margin-bottom: 8px; }
-    .pro-tip-box p { font-size: 11px; color: var(--text); line-height: 1.5; margin: 0; }
-
-    .btn-generate-hero {
-        width: 100%; height: 60px;
-        background: linear-gradient(135deg, #0d7377 0%, #14a085 100%);
-        color: white; border: none; border-radius: 16px;
-        font-size: 16px; font-weight: 800; margin-top: 20px;
-        box-shadow: 0 10px 20px -5px rgba(13,115,119,.4);
-        cursor: pointer; transition: 0.3s;
-    }
-    .btn-generate-hero:hover { filter: brightness(1.1); transform: translateY(-2px); }
-
-    /* ── MOBILE OVERRIDES ── */
-    @media (max-width: 768px) {
-        .generate-grid { gap: 15px; }
-        .settings-card { border-radius: 20px; padding: 20px; }
-        .cust-card-premium { padding: 15px; gap: 12px; }
-        .cust-avatar { display: none; }
-    }
+  @media (max-width:768px){
+    .bg-wrap{padding:0 6px calc(90px + env(safe-area-inset-bottom,0px))}
+    .bg-filters{padding:12px;border-radius:16px;gap:10px}
+    .f-row{grid-template-columns:1fr 1fr; gap:8px}
+    .f-row .f-search{grid-column:1 / -1}
+    .f-line{flex-direction:column; align-items:stretch; gap:10px}
+    .f-line > div:last-child {text-align: left !important;}
+    .list-head{padding:10px 12px; flex-direction:column; align-items:stretch; gap:8px}
+    .list-actions{justify-content: space-between}
+    .cust-scroll{max-height:55vh;padding:8px}
+    .bg-side .bg-panel{padding:16px}
+    .avatar{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){.bg-wrap *,.busy *{transition:none!important;animation-duration:2s!important}}
 </style>
 {% endblock %}
 
 {% block content %}
-<form method="post">
+<div class="bg-wrap">
+<form method="post" id="billForm" novalidate>
 {% csrf_token %}
+<input type="hidden" name="existing_mode" id="existingMode" value="update">
 
-<div class="generate-grid">
-
-    <div class="main-selection">
-        <div class="card" style="border-radius: 24px; overflow: hidden;">
-            <div class="card-header card-header-inner">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <span class="card-title" style="font-size: 16px;">👥 Select Customers</span>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" onclick="selAll(true)"  class="btn btn-secondary btn-sm" style="border-radius: 10px;">✓ All</button>
-                        <button type="button" onclick="selAll(false)" class="btn btn-secondary btn-sm" style="border-radius: 10px;">None</button>
-                    </div>
-                </div>
-            </div>
-
-            <div style="padding: 15px 24px; border-bottom: 1px solid var(--border);">
-                <input type="text" id="custSearch" class="cust-search-input"
-                       placeholder="🔍 Search name, ID or area..."
-                       oninput="filterCustomers(this.value)">
-            </div>
-
-            <div class="cust-scroll" id="custContainer" style="padding: 15px 24px;">
-                {% for c in customers %}
-                <label class="cust-card-premium {% if c.id in existing_bill_cust_ids %}has-bill{% endif %}"
-                       data-name="{{ c.name|lower }}" data-id="{{ c.customer_id|lower }}">
-
-                    <input type="checkbox" name="customers" value="{{ c.id }}"
-                           {% if c.id not in existing_bill_cust_ids %}checked{% endif %}
-                           style="display:none;">
-                    <div class="checkbox-wrapper">
-                        <span style="color:white; font-size:12px;">✓</span>
-                    </div>
-
-                    <div class="cust-avatar">{{ c.name|first|upper }}</div>
-
-                    <div class="cust-info">
-                        <h4>{{ c.name }}</h4>
-                        <p>{{ c.customer_id }} · {{ c.get_area_display }}</p>
-                    </div>
-
-                    <div class="cust-meta">
-                        <div class="qty font-mono">{{ c.default_qty }}L</div>
-                        {% if c.id in existing_bill_cust_ids %}
-                            <span class="badge-exists">Exists</span>
-                        {% endif %}
-                    </div>
-                </label>
-                {% empty %}
-                <div class="empty-state"><p>No customers found.</p></div>
-                {% endfor %}
-            </div>
-        </div>
+  <!-- FILTERS -->
+  <div class="bg-panel bg-filters">
+    <div class="f-row">
+      <div class="f-field">
+        <label for="monthSel">Month</label>
+        <select name="month" id="monthSel" class="f-control">
+          {% for num,name in months %}
+          <option value="{{ num }}" {% if sel_month == num|stringformat:"i" or sel_month == num %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="f-field">
+        <label for="yearInp">Year</label>
+        <input type="number" name="year" id="yearInp" class="f-control" value="{{ sel_year }}" min="2025" max="2030" inputmode="numeric">
+      </div>
+      <div class="f-field f-search">
+        <label for="custSearch">Customer</label>
+        <input type="search" id="custSearch" class="f-control" placeholder="Search name, ID or area" autocomplete="off" enterkeyhint="search">
+      </div>
     </div>
 
-    <div class="sticky-settings">
-        <div class="settings-card">
-            <span style="font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:1.2px;">Billing Configuration</span>
-
-            <div style="margin-top: 20px;">
-                <div class="form-group" style="margin-bottom: 18px;">
-                    <label class="settings-label">Select Month</label>
-                    <select name="month" class="form-control" onchange="updateMonthYear()" id="monthSel" style="height:50px; border-radius:12px;">
-                        {% for num,name in months %}
-                        <option value="{{ num }}" {% if sel_month == num|stringformat:"i" or sel_month == num %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 18px;">
-                    <label class="settings-label">Year</label>
-                    <input type="number" name="year" id="yearInp" class="form-control"
-                           value="{{ sel_year }}" min="2025" max="2030" onchange="updateMonthYear()"
-                           style="height:50px; border-radius:12px;">
-                </div>
-
-                <div class="form-group" style="margin-bottom: 24px;">
-                    <label class="settings-label">Discount % (Bulk)</label>
-                    <input type="number" name="discount_pct" class="form-control" step="0.5" value="0"
-                           style="height:50px; border-radius:12px; font-weight:800; color:var(--primary-light);">
-                </div>
-            </div>
-
-            <div class="pro-tip-box">
-                <div class="tip-title">💡 Pro Tip</div>
-                <p>Unchecked customers will not be billed. Existing invoices for the same period will be updated with new data.</p>
-            </div>
-
-            <button type="submit" class="btn-generate-hero">
-                ⚡ Process Selected Bills
-            </button>
-        </div>
+    <!-- AREA DROPDOWN -->
+    <div class="f-field">
+      <label for="areaSelect">Area Filter</label>
+      <select id="areaSelect" class="f-control">
+        <!-- Dynamically populated or filled via JS code -->
+      </select>
+      <!-- Hidden chips container to preserve JS bindings -->
+      <div class="chips" id="areaChips" role="group" aria-label="Filter by area"></div>
     </div>
 
-</div>
+    <div class="f-line">
+      <div>
+        <span class="f-label">Bill status for this month</span>
+        <div class="seg" id="statusSeg" role="group" aria-label="Filter by bill status">
+          <button type="button" class="on" data-s="all">All</button>
+          <button type="button" data-s="new">Not billed</button>
+          <button type="button" data-s="billed">Billed</button>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <button type="button" class="link-btn" id="resetF">↺ Reset filters</button>
+        <div class="hint">Changing month or year reloads the list</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-grid">
+
+    <!-- CUSTOMER LIST -->
+    <div class="bg-panel">
+      <div class="list-head">
+        <label class="master"><input type="checkbox" id="master"> <span id="shownLbl">Select shown</span></label>
+        <div class="list-actions">
+          <button type="button" class="btn-mini" id="bNew" title="Tick only customers without a bill">✨ Not billed only</button>
+          <button type="button" class="btn-mini" id="bAll">✓ All shown</button>
+          <button type="button" class="btn-mini" id="bNone">None</button>
+        </div>
+      </div>
+
+      <div class="cust-scroll" id="custContainer">
+        {% for c in customers %}
+        <label class="cust-card {% if c.id in existing_bill_cust_ids %}has-bill{% endif %}"
+               data-name="{{ c.name|lower }}" data-id="{{ c.customer_id|lower }}"
+               data-area="{{ c.area }}" data-area-label="{{ c.get_area_display }}"
+               data-has="{% if c.id in existing_bill_cust_ids %}1{% else %}0{% endif %}"
+               data-qty="{{ c.default_qty|default:0|stringformat:'f' }}">
+          <input type="checkbox" name="customers" value="{{ c.id }}" {% if c.id not in existing_bill_cust_ids %}checked{% endif %}>
+          <span class="tick"><span>✓</span></span>
+          <div class="avatar">{{ c.name|first|upper }}</div>
+          <div class="cust-info">
+            <h4>{{ c.name }}</h4>
+            <p>{{ c.customer_id }} · {{ c.get_area_display }}</p>
+          </div>
+          <div class="cust-meta">
+            <div class="qty">{{ c.default_qty }}L</div>
+            {% if c.id in existing_bill_cust_ids %}<span class="tag ex">Billed</span>{% else %}<span class="tag nw">New</span>{% endif %}
+          </div>
+        </label>
+        {% empty %}
+        <div class="empty">No customers found.</div>
+        {% endfor %}
+        <div class="empty" id="noMatch" hidden>
+          <div style="font-size:28px">🔍</div>
+          <div>No customers match these filters.</div>
+          <button type="button" class="btn-mini" id="noMatchReset">Clear filters</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUMMARY + SETTINGS -->
+    <div class="bg-side">
+      <div class="bg-panel">
+        <span class="side-kicker">Ready to bill</span>
+        <div class="sum-big"><span id="sSel">0</span> <span style="font-size:15px;font-weight:700;color:var(--muted)">customers</span></div>
+        <div class="hint" id="sPeriod"></div>
+
+        <div class="sum-grid">
+          <div><b id="sNew">0</b><small>New</small></div>
+          <div><b id="sEx">0</b><small>Billed</small></div>
+          <div><b id="sQty">0</b><small>Litres/day</small></div>
+        </div>
+
+        <div class="note warn" id="nHidden" hidden></div>
+        <div class="note info" id="nEx" hidden></div>
+
+        <label class="f-label" for="discInp">Discount % (bulk)</label>
+        <input type="number" name="discount_pct" id="discInp" class="f-control" step="0.5" min="0" max="100" value="0" inputmode="decimal" style="font-weight:800;color:var(--primary-light)">
+
+        <button type="submit" class="btn-go" id="goBtn">⚡ Process selected bills</button>
+        <div class="hint" style="margin-top:10px;line-height:1.5">Only ticked customers are billed. You will be asked what to do with customers who already have a bill before anything is generated.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="m-bar">
+    <div><strong><span id="mCount">0</span> selected</strong><small id="mSub">Tap to review &amp; generate</small></div>
+    <button type="submit" class="btn-go" id="goBtnM">⚡ Generate</button>
+  </div>
 </form>
+</div>
+
+<dialog class="bg-dialog" id="dlg" aria-labelledby="dlgTitle">
+  <div class="dlg-body" id="dlgBody"></div>
+  <div class="dlg-foot">
+    <button type="button" id="dlgCancel">Cancel</button>
+    <button type="button" class="go" id="dlgGo">Generate</button>
+  </div>
+</dialog>
+
+<div class="busy" id="busy" hidden role="alert"><div class="spin"></div><strong id="busyTxt">Generating bills…</strong><span style="font-size:13px;opacity:.8">Please keep this page open. Do not press back.</span></div>
+<div class="bg-toast" id="bgToast" role="status"></div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-document.querySelectorAll('.cust-card-premium').forEach(card => {
-    card.addEventListener('click', (e) => {
-        const cb = card.querySelector('input[type=checkbox]');
-        cb.checked = !cb.checked;
-    });
-});
+(function () {
+  const $  = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const form = $('#billForm'), cards = $$('.cust-card'), monthSel = $('#monthSel'), yearInp = $('#yearInp');
+  const f = { q: '', area: 'all', status: 'all' };
+  const KEY = 'mw-bill-filters';
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 
-function selAll(checked) {
-    document.querySelectorAll('[name=customers]').forEach(cb => {
-        if (cb.closest('.cust-card-premium').style.display !== 'none') {
-            cb.checked = checked;
-        }
-    });
-}
+  let tt; function toast(m) { const t = $('#bgToast'); t.textContent = m; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2200); }
+  const cb = c => c.querySelector('input[name=customers]');
+  const shown = () => cards.filter(c => !c.hidden);
 
-function filterCustomers(q) {
-    q = q.toLowerCase();
-    document.querySelectorAll('.cust-card-premium').forEach(row => {
-        const match = !q || row.dataset.name.includes(q) || row.dataset.id.includes(q);
-        row.style.display = match ? 'flex' : 'none';
-    });
-}
+  /* ── AREA SELECT & CHIPS SETUP ── */
+  const areas = new Map();
+  cards.forEach(c => {
+    const a = c.dataset.area || '';
+    if (!areas.has(a)) areas.set(a, { label: (c.dataset.areaLabel || '').trim() || 'No area', n: 0 });
+    areas.get(a).n++;
+  });
 
-function updateMonthYear() {
-    const month = document.getElementById('monthSel').value;
-    const year  = document.getElementById('yearInp').value;
-    window.location.href = `?month=${month}&year=${year}`;
-}
+  const chipBox = $('#areaChips');
+  const areaSelect = $('#areaSelect');
+
+  function addAreaOption(val, label, n) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.dataset.a = val;
+    b.innerHTML = esc(label) + '<b>' + n + '</b>';
+    b.addEventListener('click', () => { f.area = val; areaSelect.value = val; apply(); });
+    chipBox.appendChild(b);
+
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = label + ' (' + n + ')';
+    areaSelect.appendChild(opt);
+  }
+
+  addAreaOption('all', 'All areas', cards.length);
+  [...areas.entries()].sort((x, y) => x[1].label.localeCompare(y[1].label)).forEach(([v, o]) => addAreaOption(v, o.label, o.n));
+
+  areaSelect.addEventListener('change', e => {
+    f.area = e.target.value;
+    apply();
+  });
+
+  /* ── FILTER ── */
+  function apply() {
+    let n = 0;
+    cards.forEach(c => {
+      const q = f.q;
+      const okQ = !q || c.dataset.name.includes(q) || c.dataset.id.includes(q) || (c.dataset.areaLabel || '').toLowerCase().includes(q);
+      const okA = f.area === 'all' || c.dataset.area === f.area;
+      const okS = f.status === 'all' || (f.status === 'new' && c.dataset.has === '0') || (f.status === 'billed' && c.dataset.has === '1');
+      c.hidden = !(okQ && okA && okS);
+      if (!c.hidden) n++;
+    });
+    areaSelect.value = f.area;
+    $$('#areaChips .chip').forEach(b => b.classList.toggle('on', b.dataset.a === f.area));
+    $$('#statusSeg button').forEach(b => b.classList.toggle('on', b.dataset.s === f.status));
+    $('#noMatch').hidden = !(cards.length && !n);
+    $('#shownLbl').textContent = (n === cards.length ? 'Select all ' : 'Select shown ') + '(' + n + ')';
+    save(); refresh();
+  }
+  let qt;
+  $('#custSearch').addEventListener('input', e => { clearTimeout(qt); qt = setTimeout(() => { f.q = e.target.value.trim().toLowerCase(); apply(); }, 100); });
+  $('#custSearch').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } });
+  $$('#statusSeg button').forEach(b => b.addEventListener('click', () => { f.status = b.dataset.s; apply(); }));
+  function reset() { f.q = ''; f.area = 'all'; f.status = 'all'; $('#custSearch').value = ''; apply(); }
+  $('#resetF').addEventListener('click', reset); $('#noMatchReset').addEventListener('click', reset);
+
+  function save() { try { sessionStorage.setItem(KEY, JSON.stringify(f)); } catch (e) {} }
+  function restore() {
+    try {
+      const s = JSON.parse(sessionStorage.getItem(KEY) || 'null'); if (!s) return;
+      f.q = s.q || ''; f.status = ['all', 'new', 'billed'].includes(s.status) ? s.status : 'all';
+      f.area = (s.area === 'all' || areas.has(s.area)) ? s.area : 'all';
+      $('#custSearch').value = f.q;
+    } catch (e) {}
+  }
+
+  /* ── SELECTION (native label toggling – no extra click handler) ── */
+  function refresh() {
+    let sel = 0, ex = 0, qty = 0, hid = 0;
+    cards.forEach(c => {
+      const on = cb(c).checked; c.classList.toggle('selected', on);
+      if (on) { sel++; if (c.dataset.has === '1') ex++; qty += parseFloat(c.dataset.qty) || 0; if (c.hidden) hid++; }
+    });
+    const vis = shown(), nOn = vis.filter(c => cb(c).checked).length, m = $('#master');
+    m.checked = vis.length > 0 && nOn === vis.length; m.indeterminate = nOn > 0 && nOn < vis.length; m.disabled = !vis.length;
+    $('#sSel').textContent = sel; $('#sNew').textContent = sel - ex; $('#sEx').textContent = ex;
+    $('#sQty').textContent = qty.toLocaleString('en-IN', { maximumFractionDigits: 1 });
+    $('#sPeriod').textContent = monthSel.options[monthSel.selectedIndex].text + ' ' + yearInp.value;
+    const nh = $('#nHidden'), ne = $('#nEx');
+    nh.hidden = !hid; if (hid) nh.textContent = plural(hid, 'selected customer') + ' hidden by your filters will still be billed. Use "Reset filters" to review them.';
+    ne.hidden = !ex; if (ex) ne.textContent = plural(ex, 'selected customer') + ' already ' + (ex === 1 ? 'has' : 'have') + ' a bill this month. You can update or skip them on the next step.';
+    $('#goBtn').disabled = $('#goBtnM').disabled = !sel;
+    $('#mCount').textContent = sel; $('#mSub').textContent = sel ? (ex ? ex + ' already billed' : 'Tap to review & generate') : 'Tick customers first';
+  }
+  $('#custContainer').addEventListener('change', e => { if (e.target.name === 'customers') refresh(); });
+  $('#master').addEventListener('change', e => { shown().forEach(c => { cb(c).checked = e.target.checked; }); refresh(); });
+  $('#bAll').addEventListener('click', () => { shown().forEach(c => { cb(c).checked = true; }); refresh(); });
+  $('#bNone').addEventListener('click', () => { shown().forEach(c => { cb(c).checked = false; }); refresh(); });
+  $('#bNew').addEventListener('click', () => { shown().forEach(c => { cb(c).checked = c.dataset.has === '0'; }); refresh(); });
+
+  /* ── PERIOD CHANGE (reload so "billed" flags match the month) ── */
+  function go() {
+    const m = monthSel.value, y = parseInt(yearInp.value, 10);
+    if (!(y >= 2025 && y <= 2030)) { toast('Year must be between 2025 and 2030'); return; }
+    save(); document.body.style.cursor = 'progress';
+    location.href = '?month=' + encodeURIComponent(m) + '&year=' + y;
+  }
+  monthSel.addEventListener('change', go); yearInp.addEventListener('change', go);
+
+  /* ── CONFIRM → GENERATE (one submit only) ── */
+  const dlg = $('#dlg'); let sending = false;
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (sending) return;
+    const d = parseFloat($('#discInp').value || '0');
+    if (isNaN(d) || d < 0 || d > 100) { toast('Discount must be between 0 and 100'); $('#discInp').focus(); return; }
+    const on = cards.filter(c => cb(c).checked);
+    if (!on.length) { toast('Tick at least one customer'); return; }
+    const ex = on.filter(c => c.dataset.has === '1').length, hid = on.filter(c => c.hidden).length;
+    const period = monthSel.options[monthSel.selectedIndex].text + ' ' + yearInp.value;
+    let h = '<h3 id="dlgTitle">Generate ' + plural(on.length, 'bill') + '?</h3>' +
+            '<p>Period: <b>' + esc(period) + '</b>' + (d ? ' · Discount: <b>' + d + '%</b>' : '') + '</p>';
+    if (hid) h += '<div class="note warn">Includes ' + plural(hid, 'customer') + ' hidden by your filters.</div>';
+    if (ex) {
+      h += '<p><b>' + plural(ex, 'customer') + '</b> already ' + (ex === 1 ? 'has' : 'have') + ' a bill for this month:</p>' +
+           '<label class="dlg-opt"><input type="radio" name="em" value="update" checked><span><b>Update them</b><br>Recalculate from the latest deliveries</span></label>' +
+           '<label class="dlg-opt"><input type="radio" name="em" value="skip"><span><b>Skip them</b><br>Keep the existing bills as they are</span></label>';
+    }
+    $('#dlgBody').innerHTML = h;
+    $('#dlgGo').dataset.n = on.length;
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else if (confirm('Generate ' + plural(on.length, 'bill') + '?')) send(on.length);
+  });
+  $('#dlgCancel').addEventListener('click', () => dlg.close());
+  $('#dlgGo').addEventListener('click', () => {
+    const r = $('input[name=em]:checked', dlg);
+    $('#existingMode').value = r ? r.value : 'update';
+    dlg.close(); send(parseInt($('#dlgGo').dataset.n, 10));
+  });
+  function send(n) {
+    if (sending) return; sending = true;
+    $('#busyTxt').textContent = 'Generating ' + plural(n, 'bill') + '…';
+    $('#busy').hidden = false;
+    form.submit();
+  }
+  window.addEventListener('pageshow', ev => { if (ev.persisted) { sending = false; $('#busy').hidden = true; } });
+
+  restore(); apply();
+})();
 </script>
 {% endblock %}

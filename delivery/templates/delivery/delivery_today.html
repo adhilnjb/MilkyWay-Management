@@ -92,7 +92,7 @@
 .dtbl tbody tr.rd { background: var(--row-delivered); }
 .dtbl tbody tr.rm { background: var(--row-missed); }
 .dtbl tbody tr.ru { background: var(--row-unknown); }
-.dtbl tbody tr.rp { background: var(--row-paused); opacity: 0.8; } /* 👈 New style rule for paused accounts */
+.dtbl tbody tr.rp { background: var(--row-paused); opacity: 0.8; }
 
 [data-theme="dark"] {
   --row-delivered: rgba(16, 185, 129, 0.08);
@@ -136,7 +136,7 @@
 }
 .dt.del { background: var(--success); border-color: var(--success); color: white; }
 .dt.mis { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
-.dt.pau { background: #d97706; border-color: #b45309; color: white; cursor: not-allowed; } /* 👈 Styling variant for paused toggle button */
+.dt.pau { background: #d97706; border-color: #b45309; color: white; cursor: not-allowed; }
 
 /* ── AMOUNT CELL ── */
 .amt-cell { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 14px; color: var(--text); }
@@ -202,11 +202,11 @@
 </div>
 
 <div class="fbar">
-  <form method="get">
+  <form method="get" id="filterForm">
     <div class="fbar-inner">
       <div class="fg">
         <div class="flb">🔍 Search</div>
-        <input type="text" name="search" value="{{ filter_search }}" class="fc" placeholder="Name/Phone...">
+        <input type="text" name="search" id="liveSearchInput" value="{{ filter_search }}" class="fc" placeholder="Name/Phone..." autocomplete="off">
       </div>
       <div class="fg">
         <div class="flb">🗺️ Area</div>
@@ -261,8 +261,11 @@
         {% for sr in row.sub_rows %}
         {% with c=row.customer sub=sr.sub d=sr.delivery is_p=row.is_paused %}
         <tr id="row-{{ c.id }}-{{ sub.product.id }}"
+            class="delivery-row"
             data-cid="{{ c.id }}"
             data-pid="{{ sub.product.id }}"
+            data-name="{{ c.name|lower }}"
+            data-phone="{{ c.phone|default:''|lower }}"
             data-qty="{{ d.quantity|default:sub.quantity }}"
             data-price="{{ sub.price|default:sub.product.default_price }}"
             data-default="{{ sub.quantity }}"
@@ -325,7 +328,6 @@ document.querySelectorAll('#dBody tr[data-cid]').forEach(tr => {
     price:     parseFloat(tr.dataset.price)   || 0,
     defaultQty: parseFloat(tr.dataset.default) || 0
   };
-  // Force active state to false for paused items
   if (S[key].paused) {
     S[key].delivered = false;
   }
@@ -341,19 +343,19 @@ function renderRow(key) {
   const amtEl = document.getElementById(`amt-${key}`);
 
   if (r.paused) {
-    tr.className = 'rp';
+    tr.classList.add('rp');
     tog.className = 'dt pau';
     tog.textContent = '⏸️';
     if (rsn) rsn.style.visibility = 'visible';
     if (qi)  qi.style.opacity = '0.5';
   } else if (r.delivered) {
-    tr.className  = 'rd';
+    tr.classList.add('rd'); tr.classList.remove('rm');
     tog.className = 'dt del';
     tog.textContent = '✓';
     if (rsn) rsn.style.visibility = 'hidden';
     if (qi)  qi.style.opacity = '1';
   } else {
-    tr.className  = 'rm';
+    tr.classList.add('rm'); tr.classList.remove('rd');
     tog.className = 'dt mis';
     tog.textContent = '✗';
     if (rsn) rsn.style.visibility = 'visible';
@@ -405,10 +407,36 @@ function updateFooter() {
   document.getElementById('fQty').textContent = qty.toFixed(2) + 'L';
   document.getElementById('fAmt').textContent = '₹' + amt.toFixed(2);
   
-  // Calculate progress bar percentages strictly matching non-paused rows
   const pct = activeTotal > 0 ? (del / activeTotal) * 100 : 0;
   const pb = document.getElementById('prog-bar');
   if (pb) pb.style.width = pct + '%';
+}
+
+// ── INSTANT LIVE SEARCH FUNCTIONALITY ──
+const searchInput = document.getElementById('liveSearchInput');
+if (searchInput) {
+  searchInput.addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    const rows = document.querySelectorAll('.delivery-row');
+    let visibleCount = 0;
+
+    rows.forEach(tr => {
+      const name = tr.dataset.name || '';
+      const phone = tr.dataset.phone || '';
+      
+      if (name.includes(query) || phone.includes(query)) {
+        tr.style.display = '';
+        visibleCount++;
+      } else {
+        tr.style.display = 'none';
+      }
+    });
+
+    const rowCountEl = document.getElementById('rowCount');
+    if (rowCountEl) {
+      rowCountEl.textContent = visibleCount + ' Records';
+    }
+  });
 }
 
 Object.keys(S).forEach(k => renderRow(k));
