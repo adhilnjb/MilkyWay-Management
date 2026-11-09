@@ -96,21 +96,21 @@
   .m-bar strong{font-size:15px;display:block}.m-bar small{color:var(--muted);font-size:11px}
   @media (max-width:1023px){.m-bar{display:flex}}
 
-  /* PERFECTLY CENTERED & EXPLICIT THEME-AWARE DIALOG */
+  /* CLEAN CENTERED POPUP CARD WITH FORCED SOLID WHITE BACKGROUND & DARK TEXT */
   dialog.bg-dialog {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     margin: auto;
-    border: 2px solid var(--border);
+    border: 1px solid #cbd5e1;
     border-radius: 22px;
-    background-color: var(--card) !important;
-    color: var(--text) !important;
+    background-color: #ffffff !important;
+    color: #1e293b !important;
     padding: 0;
     width: min(440px, 92vw);
     max-height: 90vh;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
     z-index: 10000;
   }
   dialog.bg-dialog[open] {
@@ -118,56 +118,56 @@
     flex-direction: column;
   }
   dialog.bg-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(15, 23, 42, 0.65);
     backdrop-filter: blur(4px);
   }
   .dlg-body {
-    padding: 22px;
-    background-color: var(--card) !important;
-    color: var(--text) !important;
+    padding: 24px;
+    background-color: #ffffff !important;
+    color: #1e293b !important;
   }
   .dlg-body h3 {
     margin: 0 0 10px;
     font-size: 18px;
     font-weight: 900;
-    color: var(--text) !important;
+    color: #0f172a !important;
   }
   .dlg-body p {
-    margin: 0 0 10px;
+    margin: 0 0 12px;
     font-size: 14px;
     line-height: 1.5;
-    color: var(--text) !important;
+    color: #334155 !important;
   }
   .dlg-opt {
     display: flex;
     gap: 10px;
     align-items: flex-start;
     padding: 12px;
-    border: 1.5px solid var(--border);
+    border: 1.5px solid #cbd5e1;
     border-radius: 12px;
     margin-bottom: 8px;
     cursor: pointer;
     font-size: 13px;
     line-height: 1.4;
-    background-color: var(--bg) !important;
-    color: var(--text) !important;
+    background-color: #f8fafc !important;
+    color: #1e293b !important;
   }
   .dlg-opt input {
     margin-top: 2px;
-    accent-color: var(--primary);
+    accent-color: #0d7377;
     width: 18px;
     height: 18px;
     flex-shrink: 0;
   }
   .dlg-opt:has(input:checked) {
-    border-color: var(--primary);
-    background-color: var(--primary-pale) !important;
+    border-color: #0d7377;
+    background-color: #e6f4f4 !important;
   }
   .dlg-foot {
     display: flex;
     gap: 10px;
-    padding: 0 22px 22px;
-    background-color: var(--card) !important;
+    padding: 0 24px 24px;
+    background-color: #ffffff !important;
   }
   .dlg-foot button {
     flex: 1;
@@ -176,13 +176,13 @@
     font: 800 14px inherit;
     font-family: inherit;
     cursor: pointer;
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--text);
+    border: 1px solid #cbd5e1;
+    background: #f1f5f9;
+    color: #1e293b;
   }
   .dlg-foot .go {
-    background: var(--primary);
-    border-color: var(--primary);
+    background: #0d7377;
+    border-color: #0d7377;
     color: #fff;
   }
   
